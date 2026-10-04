@@ -5,6 +5,8 @@ import { DomainError } from "./errors.mjs";
 import { appendEvent } from "./events.mjs";
 import { advanceSnapshot } from "./snapshots.mjs";
 import { assertRecordBranch, getBranchSnapshot } from "./branch-state.mjs";
+import { candidateHash } from "./candidate-hash.mjs";
+export { candidateHash } from "./candidate-hash.mjs";
 export { publicState, exportMarkdown } from "./queries.mjs";
 export { DomainError } from "./errors.mjs";
 export { updateProject, switchProject } from "./projects.mjs";
@@ -15,21 +17,6 @@ const requireItem = (items, id, kind) => {
   if (!item) throw new DomainError("NOT_FOUND", `${kind}을(를) 찾을 수 없습니다.`, 404);
   return item;
 };
-
-export const candidateHash = (candidate) => createHash("sha256")
-  .update(canonicalJson({
-    sceneId: candidate.sceneId,
-    baseSnapshotId: candidate.baseSnapshotId,
-    before: candidate.before,
-    after: candidate.after,
-    reviewSet: candidate.reviewSet,
-    rewriteSet: candidate.rewriteSet,
-    contextHash: candidate.contextHash,
-    runId: candidate.runId,
-    contextVersion: candidate.contextVersion,
-    branchId: candidate.branchId,
-  }))
-  .digest("hex");
 
 export const reviewImpact = (state, sceneId) => {
   const visited = new Set([sceneId]);
