@@ -2,6 +2,8 @@ import ky, { HTTPError } from "ky"
 import type { BranchSummary, ExportPreview, PublishEditionInput, WorkspaceState, EditionSummary } from "./types"
 import { branchSummarySchema, editionSummarySchema, exportPreviewSchema, workspaceSchema, runCompletionSchema } from "./schema"
 import { branchHeaders, snapshotExportUrl } from "./api-contract"
+import { changeSetSchema, mergePreviewSchema, revisionContextSchema } from "../packages/revision/contracts.ts"
+import type { ChangeSet, MergePreview, RevisionContext } from "../packages/revision/contracts.ts"
 
 export { snapshotExportUrl } from "./api-contract"
 
@@ -52,6 +54,27 @@ export const mutateJson = async <T>(path: string, json: Readonly<Record<string, 
   }
 }
 
+const parseGet = async <T>(path: string, branchId: string, parse: (value: unknown) => T): Promise<T> => {
+  try {
+    return parse(await client.get(path, { headers: branchHeaders(branchId) }).json<unknown>())
+  } catch (error: unknown) {
+    if (error instanceof HTTPError) throw await apiError(error)
+    throw error
+  }
+}
+
+export const getRevisionContext = (branchId: string): Promise<RevisionContext> => parseGet("api/revision-context", branchId, (value) => revisionContextSchema.parse(value))
+
+export const createChangeSet = async (input: Readonly<Record<string, unknown>>, branchId: string): Promise<ChangeSet> => changeSetSchema.parse(await mutateJson<unknown>("api/change-sets", input, branchId))
+
+export const deriveChangeSet = async (id: string, changeIds: readonly string[], branchId: string): Promise<ChangeSet> => changeSetSchema.parse(await mutateJson<unknown>(`api/change-sets/${encodeURIComponent(id)}/derive`, { changeIds }, branchId))
+
+export const promoteCandidate = async (id: string, expectedHead: string, branchId: string): Promise<ChangeSet> => changeSetSchema.parse(await mutateJson<unknown>(`api/candidates/${encodeURIComponent(id)}/promote`, { expectedHead }, branchId))
+
+export const createMergePreview = async (input: Readonly<Record<string, unknown>>, branchId: string): Promise<MergePreview> => mergePreviewSchema.parse(await mutateJson<unknown>("api/merge-previews", input, branchId))
+
+export const sealMergePreview = async (id: string, input: Readonly<Record<string, unknown>>, branchId: string): Promise<ChangeSet> => changeSetSchema.parse(await mutateJson<unknown>(`api/merge-previews/${encodeURIComponent(id)}/seal`, input, branchId))
+
 export const editionExportUrl = (editionId: string, format: "markdown" | "docx" | "manifest") => `/api/editions/${encodeURIComponent(editionId)}/export?format=${format}`
 
 export const getExportPreview = async (snapshotId: string, branchId: string): Promise<ExportPreview> => exportPreviewSchema.parse(
@@ -76,14 +99,16 @@ export const switchBranch = async (id: string, expectedBranchId: string, expecte
   workspaceSchema.parse(await mutateJson<unknown>(`api/branches/${encodeURIComponent(id)}/switch`, { expectedBranchId, expectedHead }, expectedBranchId))
 )
 
-export async function waitForRun(id: string, branchId: string): Promise<void> {
+export async function waitForRun(id: string, branchId: string): Promise<string | undefined> {
   try {
     await client.get(`api/runs/${id}/events`, { timeout: 60_000, retry: 0, headers: branchHeaders(branchId) }).text()
   } catch (error: unknown) {
     if (!(error instanceof Error)) throw error
   }
   const result = runCompletionSchema.parse(await client.get(`api/runs/${id}`, { headers: branchHeaders(branchId) }).json<unknown>())
+  if (result.state === "cancelled") throw new ApiError("RUN_CANCELLED", "작업을 취소했습니다. 이미 진행된 외부 호출 비용은 발생할 수 있습니다.")
   if (result.state !== "awaiting_decision") {
     throw new ApiError(result.error?.code ?? "RUN_PENDING", result.error?.message ?? "작업이 아직 완료되지 않았습니다. 버전 기록에서 실행 상태를 확인하세요.")
   }
+  return result.resultRef ?? undefined
 }
