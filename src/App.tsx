@@ -1,6 +1,6 @@
 import { BookOpenText, Columns3, History, ListTree, RefreshCw, ScanSearch } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { ApiError, createBranch, getState, mutate, mutateJson, switchBranch, waitForRun } from "./api"
+import { ApiError, createBranch, createChangeSet, getRevisionContext, getState, mutate, mutateJson, switchBranch } from "./api"
 import { createdIdSchema, createdProjectSchema, workspaceSchema } from "./schema"
 import { ContextPanel } from "./components/ContextPanel"
 import { Editor } from "./components/Editor"
@@ -8,6 +8,7 @@ import { EntityDialog } from "./components/EntityDialog"
 import { Header } from "./components/Header"
 import { Sidebar } from "./components/Sidebar"
 import { WorkspaceViews } from "./components/WorkspaceViews"
+import { RevisionComposer } from "./components/RevisionComposer"
 import type { EditionSummary, ModalKind, Notice, Snapshot, WorkspaceState, WorkspaceTab } from "./types"
 import { workspaceTabs } from "./types"
 
@@ -24,6 +25,8 @@ export function App() {
   const [transitioning, setTransitioning] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [feedbackDirty, setFeedbackDirty] = useState(false)
+  const [repairRequest, setRepairRequest] = useState<Readonly<{ branchId: string; sceneId: string; feedbackId: string; instruction: string }> | null>(null)
   const [editorEpoch, setEditorEpoch] = useState(0)
   const previousFocus = useRef<HTMLElement | null>(null)
   const stateRef = useRef<WorkspaceState | null>(null)
@@ -51,12 +54,12 @@ export function App() {
     document.addEventListener("keydown", trap)
     return () => document.removeEventListener("keydown", trap)
   }, [navOpen, contextOpen])
-  const canLeave = () => !dirty || window.confirm("저장하지 않은 변경이 있습니다. 저장하지 않고 이동할까요?")
+  const canLeave = () => !(dirty || feedbackDirty) || window.confirm("저장하지 않은 원고 또는 피드백이 있습니다. 저장하지 않고 이동할까요?")
   useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault() }
+    const warn = (event: BeforeUnloadEvent) => { if (dirty || feedbackDirty) event.preventDefault() }
     window.addEventListener("beforeunload", warn)
     return () => window.removeEventListener("beforeunload", warn)
-  }, [dirty])
+  }, [dirty, feedbackDirty])
 
   const installState = (next: WorkspaceState) => {
     stateRef.current = next
@@ -120,6 +123,17 @@ export function App() {
   const selectScene = (id: string) => { if (id === selectedId && tab === "원고") { setNavOpen(false); return } if (!canLeave()) return; setDirty(false); setSelectedId(id); setTab("원고"); setNavOpen(false) }
   const sceneFeedback = state.feedback.filter((item) => item.sceneId === scene?.id)
   const sceneCandidates = state.candidates.filter((item) => item.sceneId === scene?.id)
+  const openRevisionReview = () => { if (canLeave()) { setDirty(false); setTab("개정 검토"); closeDrawers() } }
+  const submitFeedback = async (text: string, scope: string): Promise<boolean> => {
+    if (!scene) return false
+    const branchId = state.currentBranchId
+    let feedbackId = ""
+    const saved = await run(async () => {
+      feedbackId = createdIdSchema.parse(await mutateJson<unknown>("api/feedback", { sceneId: scene.id, text, scope }, branchId)).id
+    }, "피드백을 저장했습니다. 실제 수정 범위를 선택하세요.", branchId)
+    if (saved) setRepairRequest({ branchId, sceneId: scene.id, feedbackId, instruction: text })
+    return saved
+  }
 
   const dialogSubmit = async (primary: string, secondary: string) => {
     const branchId = state.currentBranchId
@@ -187,22 +201,39 @@ export function App() {
       if (applied) { setEditorEpoch((epoch) => epoch + 1); setDirty(false); setNotice({ tone: "success", text: "서버의 현재 분기 상태를 다시 불러왔습니다." }) }
     } catch (error: unknown) { showError(error) } finally { setBusy(false) }
   }
+  const refreshRevision = async (branchId: string): Promise<void> => {
+    if (stateRef.current?.currentBranchId !== branchId) return
+    const sequence = ++requestSequence.current
+    const next = await getState(branchId)
+    if (sequence !== requestSequence.current || stateRef.current?.currentBranchId !== branchId) return
+    if (next.currentBranchId !== branchId) throw new ApiError("BRANCH_SCOPE_CHANGED", "수정 작업을 시작한 분기와 응답 분기가 다릅니다.")
+    installState(next)
+  }
 
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">원고로 건너뛰기</a>
     <Header project={state.project} busy={busy} dirty={dirty} versionLabel={`기준본 v${state.snapshots.length}`} activeTab={tab} branchName={state.branches.find((branch) => branch.id === state.currentBranchId)?.name ?? "분기 정보 없음"} branchId={state.currentBranchId} head={state.head} onMenu={() => openDrawer("nav")} onNewProject={() => { if (canLeave()) setModal("project") }} onFeedback={() => { if (canLeave()) openDrawer("context") }} onSettings={() => { if (canLeave()) openDrawer("context") }} />
     <nav className="mode-tabs" aria-label="작업 공간">
-      {workspaceTabs.map((item, index) => { const Icon = tabIcons[index]; return <button key={item} type="button" className={tab === item ? "active" : ""} onClick={() => { if (item !== tab && canLeave()) { setDirty(false); setTab(item) } }}>{Icon ? <Icon /> : null}<span>{item}</span>{item === "개정 검토" && state.candidates.some((candidate) => candidate.status === "pending") ? <i /> : null}</button> })}
+      {workspaceTabs.map((item, index) => { const Icon = tabIcons[index]; return <button key={item} type="button" className={tab === item ? "active" : ""} onClick={() => { if (item !== tab && canLeave()) { setDirty(false); setTab(item) } }}>{Icon ? <Icon /> : null}<span>{item}</span>{item === "개정 검토" && (state.candidates.some((candidate) => candidate.status === "pending") || state.changeSets.some((changeSet) => changeSet.status === "pending")) ? <i /> : null}</button> })}
     </nav>
     <div key={editorEpoch} className="workspace" inert={transitioning} aria-busy={transitioning}>
       <Sidebar project={state.project} busy={busy} projects={state.projects} onProject={(id) => { void switchWorkingProject(id) }} scenes={state.scenes} selectedId={selectedId} open={navOpen} onClose={closeDrawers} onSelect={selectScene} onNewScene={() => setModal("scene")} />
       {tab === "원고" && scene ? <>
-        <Editor key={`${state.currentBranchId}:${scene.id}`} scene={scene} draftText={draft?.text} draftStale={draftStale} onRebase={(text) => run(() => mutate(`api/scenes/${scene.id}/draft`, { text, baseSnapshotId }, state.currentBranchId), "초안을 현재 기준본에 명시적으로 연결했습니다.", state.currentBranchId).then(() => undefined)} onDirtyChange={setDirty} busy={busy} onDraft={(text) => run(() => mutate(`api/scenes/${scene.id}/draft`, { text, baseSnapshotId: draftBase }, state.currentBranchId), "작업 초안을 저장했습니다. 기준본은 바뀌지 않았습니다.", state.currentBranchId).then(() => undefined)} onCandidate={(text) => run(() => mutate("api/candidates", { sceneId: scene.id, instruction: "직접 편집", proposedText: text, baseSnapshotId: draftBase }, state.currentBranchId), "직접 편집안을 검토 대기열에 추가했습니다.", state.currentBranchId).then(() => undefined)} onProtect={(quote) => run(() => mutate(`api/scenes/${scene.id}/protect`, { quote }, state.currentBranchId), "선택한 문장을 보호했습니다.", state.currentBranchId).then(() => undefined)} />
-        <ContextPanel key={`${state.currentBranchId}:${scene.id}`} scene={scene} feedback={sceneFeedback} candidates={sceneCandidates} settings={state.settings} busy={busy} open={contextOpen} onClose={closeDrawers} onSubmit={(text, scope) => run(async () => { const branchId = state.currentBranchId; const created = createdIdSchema.parse(await mutateJson<unknown>("api/feedback", { sceneId: scene.id, text, scope }, branchId)); const job = createdIdSchema.parse(await mutateJson<unknown>("api/runs", { sceneId: scene.id, feedbackId: created.id, instruction: text, baseSnapshotId }, branchId)); await waitForRun(job.id, branchId) }, "피드백과 편집안을 생성했습니다.", state.currentBranchId)} onCommit={async (candidate) => { if (!canLeave()) return; await run(() => mutate(`api/candidates/${candidate.id}/commit`, { expectedHead: state.head, hash: candidate.hash }, state.currentBranchId), "검토한 편집안을 새 기준본으로 반영했습니다.", state.currentBranchId) }} onReject={(candidate) => run(() => mutate(`api/candidates/${candidate.id}/reject`, {}, state.currentBranchId), "편집안을 거절했습니다.", state.currentBranchId).then(() => undefined)} />
-      </> : <WorkspaceViews key={`${state.currentBranchId}:${scene?.id ?? "none"}`} tab={tab} scenes={state.scenes} plans={state.plans} runs={state.runs} candidates={state.candidates} snapshots={state.snapshots} editions={state.editions} head={state.head} busy={busy} branches={state.branches} currentBranchId={state.currentBranchId} onSwitchBranch={switchWorkingBranch} onCreateBranch={createWorkingBranch} onRefresh={reloadWorkspace} onPlan={() => setModal("plan")} onNewScene={() => setModal("scene")} onRestore={(snapshot: Snapshot) => run(() => mutate("api/restore", { snapshotId: snapshot.id, expectedHead: state.head }, state.currentBranchId), "선택한 버전을 새 기준본으로 복원했습니다.", state.currentBranchId).then(() => undefined)} onPublished={editionPublished} onScene={selectScene} />}
+        <Editor key={`${state.currentBranchId}:${scene.id}`} scene={scene} draftText={draft?.text} draftStale={draftStale} onRebase={(text) => run(() => mutate(`api/scenes/${scene.id}/draft`, { text, baseSnapshotId }, state.currentBranchId), "초안을 현재 기준본에 명시적으로 연결했습니다.", state.currentBranchId).then(() => undefined)} onDirtyChange={setDirty} busy={busy} onDraft={(text) => run(() => mutate(`api/scenes/${scene.id}/draft`, { text, baseSnapshotId: draftBase }, state.currentBranchId), "작업 초안을 저장했습니다. 기준본은 바뀌지 않았습니다.", state.currentBranchId).then(() => undefined)} onCandidate={(text) => { const branchId = state.currentBranchId; const capturedDraftBase = draftBase; const capturedWorkspaceHash = state.workspaceHash; return run(async () => { const context = await getRevisionContext(branchId); if (context.baseSnapshotId !== capturedDraftBase || context.workspaceHash !== capturedWorkspaceHash) throw new ApiError("STALE_WORKSPACE", "편집을 시작한 기준본이 바뀌었습니다. 입력은 유지됩니다. 현재 기준본을 다시 확인하세요."); const rawScene = context.workspace.scenes.find((item) => item.id === scene.id); if (!rawScene) throw new ApiError("SCENE_MISSING", "현재 기준본에서 장면을 찾을 수 없습니다."); await createChangeSet({ baseSnapshotId: context.baseSnapshotId, baseWorkspaceHash: context.workspaceHash, reason: "직접 편집", changes: [{ kind: "scene", artifactId: rawScene.id, after: { ...rawScene, text } }], feedbackIds: [], atomic: false }, branchId) }, "직접 편집안을 V2 검토 대기열에 추가했습니다.", branchId).then(() => undefined) }} onProtect={(quote) => run(() => mutate(`api/scenes/${scene.id}/protect`, { quote }, state.currentBranchId), "선택한 문장을 보호했습니다.", state.currentBranchId).then(() => undefined)} />
+        <ContextPanel key={`${state.currentBranchId}:${scene.id}`} scene={scene} feedback={sceneFeedback} candidates={sceneCandidates}
+          changeSets={state.changeSets.filter((changeSet) => changeSet.entries.some((entry) => entry.kind === "scene" && entry.artifactId === scene.id) || changeSet.feedbackIds.some((id) => sceneFeedback.some((feedback) => feedback.id === id)))}
+          settings={state.settings} busy={busy} open={contextOpen} onClose={closeDrawers} onDirtyChange={setFeedbackDirty}
+          onOpenReview={openRevisionReview} onSubmit={submitFeedback} onCommit={async () => { openRevisionReview() }}
+          onRepair={(feedback) => setRepairRequest({ branchId: state.currentBranchId, sceneId: feedback.sceneId, feedbackId: feedback.id, instruction: feedback.text })}
+          onReject={(candidate) => run(() => mutate(`api/candidates/${candidate.id}/reject`, {}, state.currentBranchId), "이전 형식 편집안을 거절했습니다.", state.currentBranchId).then(() => undefined)}
+          onResolve={(feedback, decision, note) => run(() => mutate(`api/feedback/${feedback.id}/resolve`, { expectedHead: state.head, decision, note }, state.currentBranchId), "피드백 상태를 기록했습니다.", state.currentBranchId).then(() => undefined)} />
+      </> : <WorkspaceViews key={`${state.currentBranchId}:${scene?.id ?? "none"}`} tab={tab} scenes={state.scenes} plans={state.plans} runs={state.runs} candidates={state.candidates} changeSets={state.changeSets} workspaceHash={state.workspaceHash} snapshots={state.snapshots} editions={state.editions} head={state.head} busy={busy} branches={state.branches} currentBranchId={state.currentBranchId} onSwitchBranch={switchWorkingBranch} onCreateBranch={createWorkingBranch} onRefresh={reloadWorkspace} onRevisionRefresh={() => refreshRevision(state.currentBranchId)} onPlan={() => setModal("plan")} onNewScene={() => setModal("scene")} onRestore={(snapshot: Snapshot) => run(() => mutate("api/restore", { snapshotId: snapshot.id, expectedHead: state.head }, state.currentBranchId), "선택한 버전을 새 기준본으로 복원했습니다.", state.currentBranchId).then(() => undefined)} onPublished={editionPublished} onScene={selectScene} />}
     </div>
     {notice ? <div className={`toast ${notice.tone}`} role="status"><span>{notice.text}</span><button type="button" onClick={() => setNotice(null)} aria-label="알림 닫기">×</button></div> : null}
     {modal ? <EntityDialog kind={modal} busy={busy} onClose={() => setModal(null)} onSubmit={dialogSubmit} /> : null}
+    {repairRequest ? <RevisionComposer key={`${repairRequest.branchId}:${repairRequest.feedbackId}`} mode="repair" branchId={repairRequest.branchId}
+      initialSceneId={repairRequest.sceneId} initialInstruction={repairRequest.instruction} feedbackIds={[repairRequest.feedbackId]}
+      onClose={() => setRepairRequest(null)} onCreated={async () => { await refreshRevision(repairRequest.branchId) }} /> : null}
   </div>
 }
 
