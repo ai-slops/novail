@@ -29,8 +29,33 @@ test('cancel blocks late result selection', async (t) => {
   const { store, run } = await fixture(t);
   const claim = await claimJob(store);
   await controlRun(store, { id: run.id, action: 'cancel' });
-  const result = await completeJob(store, { jobId: claim.job.id, leaseToken: claim.job.leaseToken, outputTokens: 5, resultRef: 'candidate' });
-  assert.equal(result.accepted, false);
+  const completion = { jobId: claim.job.id, leaseToken: claim.job.leaseToken,
+    outputTokens: 40, usageKnown: true, resultRef: 'candidate' };
+  assert.deepEqual(await completeJob(store, completion), { accepted: false });
+  assert.deepEqual(await completeJob(store, completion), { accepted: false });
+  const state = await store.read();
+  const cancelled = state.runs.find((item) => item.id === run.id);
+  const job = state.jobs.find((item) => item.id === claim.job.id);
+  assert.equal(cancelled.state, 'cancelled');
+  assert.equal(cancelled.actualOutputTokens, 40);
+  assert.equal(cancelled.reservedCalls, 1);
+  assert.equal(cancelled.resultRef, undefined);
+  assert.equal(job.state, 'cancelled');
+  assert.equal(job.usageState, 'reported');
+});
+
+test('cancel conservatively retains reservation when late usage is unknown', async (t) => {
+  const { store, run } = await fixture(t);
+  const claim = await claimJob(store);
+  await controlRun(store, { id: run.id, action: 'cancel' });
+  assert.deepEqual(await completeJob(store, { jobId: claim.job.id, leaseToken: claim.job.leaseToken,
+    outputTokens: 40, usageKnown: false, resultRef: 'candidate' }), { accepted: false });
+  const state = await store.read();
+  const cancelled = state.runs.find((item) => item.id === run.id);
+  const job = state.jobs.find((item) => item.id === claim.job.id);
+  assert.equal(cancelled.actualOutputTokens, 0);
+  assert.equal(cancelled.reservedCalls, 1);
+  assert.equal(job.usageState, undefined);
 });
 
 test('expired lease retains uncertain budget and requires explicit new execution', async (t) => {

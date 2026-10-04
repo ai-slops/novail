@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { assertActiveScope, assertReplayScope, resolveBranchScope } from '../../app/branch-scope.mjs';
 import { assertRecordBranch, isActiveRecord } from '../../app/branch-state.mjs';
+import { prepareRepairInput } from '../../app/repair-input.mjs';
 
 export class RunError extends Error {
   constructor(code, message, status = 409) {
@@ -16,6 +17,21 @@ export function appendEvent(state, run, type, details = {}) {
   state.runEvents.push({ id: randomUUID(), runId: run.id, sequence, type, details, createdAt: new Date().toISOString() });
 }
 
+function proposalRunIsLive(state, proposal) {
+  const run = proposal.runId ? state.runs.find((item) => item.id === proposal.runId) : null;
+  return !run || (run.state !== 'cancelled' && !run.cancellationRequested);
+}
+
+function reopenOrphanedFeedback(state, feedbackIds) {
+  for (const feedback of state.feedback.filter((item) => feedbackIds.has(item.id) && item.state === 'awaiting_decision')) {
+    const hasCandidate = state.candidates.some((item) => item.feedbackId === feedback.id && item.status === 'pending'
+      && proposalRunIsLive(state, item));
+    const hasChangeSet = (state.changeSets ?? []).some((item) => item.feedbackIds?.includes(feedback.id)
+      && ['proposed', 'pending', 'stale_candidate'].includes(item.status) && proposalRunIsLive(state, item));
+    if (!hasCandidate && !hasChangeSet) feedback.state = 'open';
+  }
+}
+
 export async function enqueueRun(store, input) {
   return store.transaction((state) => {
     const scope = resolveBranchScope(state, input.branchId);
@@ -27,13 +43,21 @@ export async function enqueueRun(store, input) {
     }
     assertActiveScope(state, scope);
     if (state.head !== input.baseSnapshotId) throw new RunError('STALE_BASE', '작업본이 변경되었습니다.');
-    if (!state.scenes.some((scene) => scene.id === input.sceneId)) throw new RunError('NOT_FOUND', '장면을 찾을 수 없습니다.', 404);
-    if (input.feedbackId && !state.feedback.some((feedback) => feedback.id === input.feedbackId && feedback.sceneId === input.sceneId)) throw new RunError('NOT_FOUND', '이 장면의 피드백을 찾을 수 없습니다.', 404);
+    const purpose = input.purpose ?? 'revise_scene';
+    let details;
+    switch (purpose) {
+      case 'revise_scene':
+        if (!state.scenes.some((scene) => scene.id === input.sceneId)) throw new RunError('NOT_FOUND', '장면을 찾을 수 없습니다.', 404);
+        if (input.feedbackId && !state.feedback.some((feedback) => feedback.id === input.feedbackId && feedback.sceneId === input.sceneId)) throw new RunError('NOT_FOUND', '이 장면의 피드백을 찾을 수 없습니다.', 404);
+        details = { sceneId: input.sceneId, feedbackId: input.feedbackId ?? null };
+        break;
+      case 'repair_bundle': details = prepareRepairInput(state, input); break;
+      default: throw new RunError('SCHEMA_INVALID', '지원하지 않는 실행 종류입니다.', 422);
+    }
     const run = {
       id: randomUUID(), projectId: state.project.id, branchId: scope.branchId, queueManaged: true,
-      state: 'queued', purpose: 'revise_scene', baseSnapshotId: input.baseSnapshotId,
-      sceneId: input.sceneId, instruction: input.instruction,
-      feedbackId: input.feedbackId ?? null, contextVersion: state.contextVersion ?? 0,
+      state: 'queued', purpose, baseSnapshotId: input.baseSnapshotId,
+      ...details, instruction: input.instruction, contextVersion: state.contextVersion ?? 0,
       budget: input.budget, reservedCalls: 0, actualOutputTokens: 0,
       createdAt: new Date().toISOString(), cancellationRequested: false,
     };
@@ -67,7 +91,14 @@ export async function controlRun(store, input) {
         run.state = 'cancelled';
         run.cancellationRequested = true;
         for (const job of jobs.filter((item) => ['queued', 'running'].includes(item.state))) job.state = 'cancelled';
-        for (const candidate of state.candidates.filter((item) => item.runId === run.id && item.status === 'pending')) candidate.status = 'cancelled';
+        const candidates = state.candidates.filter((item) => item.runId === run.id && item.status === 'pending');
+        const changeSets = (state.changeSets ?? []).filter((item) => item.runId === run.id && ['proposed', 'pending', 'stale_candidate'].includes(item.status));
+        for (const candidate of candidates) candidate.status = 'cancelled';
+        for (const changeSet of changeSets) changeSet.status = 'cancelled';
+        reopenOrphanedFeedback(state, new Set([
+          ...candidates.map((candidate) => candidate.feedbackId).filter(Boolean),
+          ...changeSets.flatMap((changeSet) => changeSet.feedbackIds ?? []),
+        ]));
         break;
       case 'pause':
         if (!['queued', 'running'].includes(run.state)) throw new RunError('INVALID_TRANSITION', '대기 또는 실행 중인 작업만 중지할 수 있습니다.');
@@ -126,14 +157,24 @@ export async function claimJob(store, now = Date.now()) {
 export async function completeJob(store, input) {
   return store.transaction((state) => {
     const job = (state.jobs ?? []).find((item) => item.id === input.jobId);
-    if (!job || job.leaseToken !== input.leaseToken || job.state !== 'running') return { accepted: false };
+    if (!job || job.leaseToken !== input.leaseToken) return { accepted: false };
     const run = state.runs.find((item) => item.id === job.runId);
+    if (job.state === 'cancelled' && run?.cancellationRequested) {
+      if (input.usageKnown && job.usageState === undefined) {
+        run.actualOutputTokens += input.outputTokens;
+        job.usageState = 'reported';
+      }
+      return { accepted: false };
+    }
+    if (job.state !== 'running') return { accepted: false };
     if (!run || run.cancellationRequested || !isActiveRecord(state, run)) return { accepted: false };
     if (input.error) {
+      if (input.usageKnown) run.actualOutputTokens += input.outputTokens;
+      if (input.releaseReservation) run.reservedCalls = Math.max(0, run.reservedCalls - 1);
       run.state = 'failed';
       run.error = input.error;
       job.state = 'failed';
-      job.usageState = 'usage_unknown';
+      job.usageState = input.usageKnown ? 'reported' : 'usage_unknown';
       appendEvent(state, run, 'run.failed', input.error);
       return { accepted: false };
     }
