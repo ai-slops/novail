@@ -1,3 +1,5 @@
+import type { ChangeSet } from "../packages/revision/contracts"
+
 export type Project = Readonly<{ id: string; title: string; subtitle: string; stage: string }>
 export type Scene = Readonly<{
   id: string
@@ -96,6 +98,7 @@ export type WorkspaceState = Readonly<{
   project: Project
   projects: readonly Project[]
   head: string
+  workspaceHash: string
   currentBranchId: string
   branches: readonly BranchSummary[]
   scenes: readonly Scene[]
@@ -107,6 +110,7 @@ export type WorkspaceState = Readonly<{
   runs: readonly Run[]
   settings: Settings
   drafts: Readonly<Record<string, Draft>>
+  changeSets: readonly ChangeSet[]
 }>
 
 export const workspaceTabs = ["원고", "기획 보드", "타임라인", "개정 검토", "버전 기록"] as const

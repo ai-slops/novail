@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { changeSetSchema } from "../packages/revision/contracts.ts"
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 
 const projectSchema = z.object({ id: z.string(), title: z.string(), subtitle: z.string(), stage: z.string() })
@@ -33,6 +34,7 @@ export const workspaceSchema = z.object({
   project: projectSchema,
   projects: z.array(projectSchema),
   head: z.string(),
+  workspaceHash: sha256Schema.or(z.literal("")).default(""),
   currentBranchId: z.string().default(""),
   branches: z.array(branchSummarySchema).default([]),
   scenes: z.array(sceneSchema),
@@ -44,8 +46,9 @@ export const workspaceSchema = z.object({
   runs: z.array(runSchema),
   settings: z.object({ providerConfigured: z.boolean(), mode: z.string() }),
   drafts: z.record(z.string(), z.object({ sceneId: z.string(), text: z.string(), baseSnapshotId: z.string(), updatedAt: z.string() })).default({}),
+  changeSets: z.array(changeSetSchema).default([]),
 })
 
 export const createdIdSchema = z.object({ id: z.string() })
 export const createdProjectSchema = z.object({ id: z.string(), currentBranchId: z.string() })
-export const runCompletionSchema = z.object({ state: z.string(), error: z.object({ code: z.string(), message: z.string() }).optional() })
+export const runCompletionSchema = z.object({ state: z.string(), resultRef: z.string().nullable().optional(), error: z.object({ code: z.string(), message: z.string() }).optional() })

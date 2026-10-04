@@ -16,12 +16,31 @@ test('legacy state without editions parses with an empty edition ledger', () => 
   delete response.editions;
   delete response.currentBranchId;
   delete response.branches;
+  delete response.workspaceHash;
+  delete response.changeSets;
   response.snapshots = response.snapshots.map(({ canBranch: _canBranch, ...snapshot }) => snapshot);
   const parsed = workspaceSchema.parse(response);
   assert.deepEqual(parsed.editions, []);
   assert.equal(parsed.currentBranchId, '');
   assert.deepEqual(parsed.branches, []);
+  assert.equal(parsed.workspaceHash, '');
+  assert.deepEqual(parsed.changeSets, []);
   assert.equal(parsed.snapshots[0]?.canBranch, false);
+});
+
+test('V2 workspace state preserves its workspace hash and change sets', () => {
+  const response = publicState(createSeed());
+  response.workspaceHash = 'a'.repeat(64);
+  response.changeSets = [];
+  const parsed = workspaceSchema.parse(response);
+  assert.equal(parsed.workspaceHash, 'a'.repeat(64));
+  assert.deepEqual(parsed.changeSets, []);
+});
+
+test('V2 workspace state rejects malformed change sets at the API boundary', () => {
+  const response = publicState(createSeed());
+  response.changeSets = [{ id: 'not-a-complete-change-set' }];
+  assert.throws(() => workspaceSchema.parse(response));
 });
 
 test('branch-aware workspace parses branch identity, lineage, and branchable snapshots', () => {
