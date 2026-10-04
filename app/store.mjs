@@ -23,7 +23,7 @@ export class FileStore {
       this.#state = createSeed();
       created = true;
     }
-    const needsMigration = this.#state.branchSchemaVersion !== 1 || !this.#state.branches || this.#state.workspaces.some((project) => !project.branches);
+    const needsMigration = this.#state.branchSchemaVersion !== 1 || this.#state.revisionSchemaVersion !== 1 || !this.#state.branches || this.#state.workspaces.some((project) => !project.branches);
     initializeBranches(this.#state);
     if (created || needsMigration) await this.#save(this.#state);
   }

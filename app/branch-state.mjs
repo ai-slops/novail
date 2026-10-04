@@ -1,7 +1,7 @@
 import { DomainError } from './errors.mjs';
 
 export const branchFields = Object.freeze([
-  'scenes', 'plans', 'dependencies', 'contextVersion', 'drafts', 'feedback', 'candidates', 'runs', 'jobs', 'runEvents',
+  'scenes', 'plans', 'dependencies', 'contextVersion', 'drafts', 'feedback', 'candidates', 'changeSets', 'mergePreviews', 'runs', 'jobs', 'runEvents',
 ]);
 export const projectFields = Object.freeze([
   ...branchFields, 'project', 'head', 'snapshots', 'editions', 'branches', 'currentBranchId',
@@ -37,6 +37,8 @@ export function initializeProjectBranches(state) {
   state.jobs ??= [];
   state.runEvents ??= [];
   state.editions ??= [];
+  state.changeSets ??= [];
+  state.mergePreviews ??= [];
   if (!state.branches) {
     const first = state.snapshots[0];
     if (!first) throw new DomainError('BRANCH_STATE_INVALID', '기본 스냅샷이 없는 작품입니다.', 409);
@@ -44,6 +46,12 @@ export function initializeProjectBranches(state) {
     state.branches = [{ id: state.currentBranchId, name: '주 작업본', headSnapshotId: state.head,
       sourceSnapshotId: first.id, sourceBranchId: null, createdAt: first.createdAt,
       snapshotIds: state.snapshots.map((snapshot) => snapshot.id) }];
+  }
+  for (const branch of state.branches) {
+    if (branch.workspace) {
+      branch.workspace.changeSets ??= [];
+      branch.workspace.mergePreviews ??= [];
+    }
   }
   validateBranches(state);
   return state;
@@ -66,6 +74,7 @@ export function initializeBranches(state) {
     state.branchSchemaVersion = 1;
   }
   for (const project of projects) initializeProjectBranches(project);
+  state.revisionSchemaVersion = 1;
   return state;
 }
 
