@@ -4,11 +4,13 @@ import type { SyntheticEvent } from "react"
 import { ApiError, editionExportUrl, getExportPreview, publishEdition, snapshotExportUrl } from "../api"
 import type { BranchSummary, EditionSummary, ExportPreview, Run, Snapshot } from "../types"
 import { BranchControls, CreateBranchDialog, ForkSnapshotButton } from "./BranchControls"
+import { MergeDialog } from "./MergeDialog"
 
 type VersionsProps = Readonly<{
   snapshots: readonly Snapshot[]
   editions: readonly EditionSummary[]
   head: string
+  workspaceHash: string
   busy: boolean
   latestRun: Run | undefined
   branches: readonly BranchSummary[]
@@ -16,6 +18,7 @@ type VersionsProps = Readonly<{
   onSwitchBranch: (id: string) => Promise<void>
   onCreateBranch: (name: string, sourceSnapshotId: string) => Promise<boolean>
   onRefresh: () => Promise<void>
+  onRevisionRefresh: () => Promise<void>
   onRestore: (snapshot: Snapshot) => Promise<void>
   onPublished: (edition: EditionSummary, branchId: string) => void
 }>
@@ -29,9 +32,10 @@ const formats = [
 export function Versions(props: VersionsProps) {
   const [selection, setSelection] = useState<Readonly<{ snapshot: Snapshot; expectedHead: string; expectedBranchId: string }> | null>(null)
   const [forkSource, setForkSource] = useState<Snapshot | null>(null)
+  const [merging, setMerging] = useState(false)
   const currentSnapshot = props.snapshots.find((snapshot) => snapshot.id === props.head)
   return <main className="secondary-view editions-view" id="main-content">
-    <header className="view-header"><div><p className="overline">IMMUTABLE HISTORY</p><h2>버전 기록</h2></div></header>
+    <header className="view-header"><div><p className="overline">IMMUTABLE HISTORY</p><h2>버전 기록</h2></div><button className="button primary" type="button" disabled={props.busy || props.branches.length < 2} onClick={() => setMerging(true)}><GitBranch /> 다른 분기 병합</button></header>
     <BranchControls branches={props.branches} currentBranchId={props.currentBranchId} source={currentSnapshot} busy={props.busy} onSwitch={props.onSwitchBranch} onCreate={props.onCreateBranch} onRefresh={props.onRefresh} />
     <section className="edition-section" aria-labelledby="snapshot-heading">
       <SectionHeading id="snapshot-heading" eyebrow="WORKING SNAPSHOTS" title="작업본 스냅샷" count={props.snapshots.length} />
@@ -44,6 +48,7 @@ export function Versions(props: VersionsProps) {
     {props.latestRun ? <section className="run-strip"><Clock3 /><div><strong>최근 실행</strong><p>{props.latestRun.purpose} · {props.latestRun.state}</p></div></section> : null}
     {selection ? <PublishDialog selection={selection} onClose={() => setSelection(null)} onPublished={(edition) => { setSelection(null); props.onPublished(edition, selection.expectedBranchId) }} /> : null}
     {forkSource ? <CreateBranchDialog source={forkSource} busy={props.busy} onClose={() => setForkSource(null)} onCreate={async (name) => { const created = await props.onCreateBranch(name, forkSource.id); if (created) setForkSource(null); return created }} /> : null}
+    {merging ? <MergeDialog branches={props.branches} currentBranchId={props.currentBranchId} expectedHead={props.head} workspaceHash={props.workspaceHash} onClose={() => setMerging(false)} onSealed={async () => { await props.onRevisionRefresh() }} /> : null}
   </main>
 }
 
