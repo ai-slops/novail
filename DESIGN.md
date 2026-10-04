@@ -60,7 +60,7 @@ Base unit is 4px. Tokens: `--space-1: 4px`, `--space-2: 8px`, `--space-3: 12px`,
 
 Shell: `100dvh`, header fixed in row one, tab bar fixed in row two, workspace in `minmax(0, 1fr)`. Desktop workspace columns are `248px minmax(420px, 1fr) 332px`; only each declared panel body scrolls. Tablet collapses project navigation into a drawer. Below 760px the manuscript is primary, the context panel becomes an overlay sheet, and tabs are horizontally scrollable. Content must reflow at 375px with no primary horizontal overflow.
 
-Content measures: `--measure-ledger: 900px` keeps history readable, `--measure-dialog-wide: 680px` supports manifest inspection, and `--measure-preview: 240px` bounds long scene lists with an explicit inner scroll owner.
+Content measures: `--measure-ledger: 900px` keeps history readable, `--measure-dialog-wide: 680px` supports manifest inspection, `--measure-dialog-merge: 880px` supports side-by-side branch resolution, and `--measure-preview: 240px` bounds proposal rails and long scene lists with an explicit inner scroll owner.
 
 Radii: `--radius-sm: 4px`, `--radius-md: 8px`, `--radius-lg: 12px`. Icons: `--icon-sm: 16px`, `--icon-md: 18px`, `--icon-lg: 22px`. Controls have a minimum 44px hit area.
 
@@ -123,6 +123,21 @@ Radii: `--radius-sm: 4px`, `--radius-md: 8px`, `--radius-lg: 12px`. Icons: `--ic
 - **Accessibility**: every select has a visible label, branch identity remains text-visible in the shell, lineage is not color-only, and errors are announced through the existing status toast.
 - **Mobile shell**: prioritize the current branch name over the duplicated tab title in the header; long names ellipsize with their full text retained in a title attribute and the branch selector.
 - **Motion**: branch changes use no decorative transition; the selected name changes only after the server confirms the requested scope.
+
+### Revision workspace V2
+- **Structure**: proposal rail / selected proposal review / action bar. The rail separates V2 change sets from legacy candidates; legacy items expose promotion or rejection, never direct adoption.
+- **Proposal anatomy**: reason and provenance, immutable hash, bundle checkboxes, full before/after artifact values, mechanical validation, human narrative review, impact acknowledgments, and blocked reasons.
+- **Partial adoption**: selection is bundle-based. A derived proposal is visibly a fresh review object with a new hash; it never inherits prior acknowledgments.
+- **Impact semantics**: `reviewSet` and `rewriteSet` are presented as different concepts. Unchanged affected targets require an explicit checkbox before adoption. Mechanical validation cannot imply narrative approval.
+- **Composer**: manual and AI repair modes share the editorial-field primitive. The current scene may be preselected, while every additional scene/plan is an explicit human choice. Destructive removal requires a separate confirmation checkbox. Atomic mode explains that all selected artifacts succeed or fail together.
+- **States**: empty, loading, selected, stale, incomplete, issue-blocked, unacknowledged, derived-review-required, accepted, rejected. Blocked actions name every reason in text.
+- **Responsive**: the rail stacks above review below 960px; artifact comparisons become one column below 760px; action bars wrap without hiding the decision label.
+
+### Merge preview dialog
+- **Structure**: source branch selector in Versions, then a wide dialog with immutable source/target identity, preview hash, per-artifact resolution, and seal action.
+- **Resolution**: conflicts require source, target, or custom. Clean changes default to source but remain overridable. Plan and dependency/layout graph differences always require an explicit choice.
+- **Custom editing**: scene and plan editors retain all non-edited metadata. Graph/layout custom values use labeled JSON fields with safe parse errors; invalid input stays in place.
+- **Safety**: opening captures target branch, head, and workspace hash. Stale errors preserve all choices. Closing or unloading with custom unsaved values requires confirmation. Sealing only creates a V2 proposal; review and adoption remain separate.
 
 ## 6. Motion & Interaction
 Tokens: `--motion-micro: 120ms ease-out`, `--motion-standard: 220ms cubic-bezier(.2,.8,.2,1)`, `--motion-emphasis: 360ms cubic-bezier(.16,1,.3,1)`. Motion communicates selection, drawer ownership, and completion only. Save/commit confirmation uses a brief opacity transition. Animate only transform and opacity. Under `prefers-reduced-motion: reduce`, all non-essential transitions resolve immediately.
