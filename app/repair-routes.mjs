@@ -1,0 +1,22 @@
+import { createHash } from 'node:crypto';
+import { z } from 'zod';
+import { repairRunSchema } from '../packages/revision/contracts.ts';
+import { enqueueRun } from '../packages/execution/queue.mjs';
+import { branchHeader } from './branch-scope.mjs';
+import { DomainError } from './errors.mjs';
+
+export function mountRepairRoutes(app, { store }) {
+  app.post('/api/repair-runs', async (context) => {
+    let raw;
+    try { raw = await context.req.json(); }
+    catch (error) {
+      if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', '유효한 JSON 본문이 필요합니다.', 400);
+      throw error;
+    }
+    const input = repairRunSchema.parse(raw);
+    const requestKey = z.uuid().parse(context.req.header('Idempotency-Key'));
+    const requestHash = createHash('sha256').update(`${context.req.path}\n${JSON.stringify(input)}`).digest('hex');
+    const run = await enqueueRun(store, { ...input, purpose: 'repair_bundle', branchId: context.req.header(branchHeader), requestKey, requestHash });
+    return context.json(run, 202);
+  });
+}
