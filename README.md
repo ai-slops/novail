@@ -1,6 +1,118 @@
-# Single application repository
+# NOVAIL · 사람과 함께 쓰는 소설 작업실
 
-DIM-specific lifecycle code lives under `.dim/`. It creates an unprivileged
-agent service and a private rootless DinD sidecar. There is intentionally no
-`.dim/repos.yml`, branch protection, additional repository, or secret-bearing
-service in this example.
+한국어 장편의 원고, 기획, 피드백, 수정 후보와 버전을 함께 다루는 웹 애플리케이션입니다. **후보 생성과 공식 원고 채택은 다른 동작**이며, 직접 편집을 저장하는 것만으로 공식 작업본이 바뀌지 않습니다.
+
+> 구현 범위: 제공된 `novail.md` 명세의 첫 번째 종단 간 협업 흐름을 실행할 수 있는 단일 사용자 구현입니다. 명세 전체의 M0–M3 완료 또는 AT-01–28 전체 통과를 주장하지 않습니다. 아래의 구현 범위와 제한을 확인하세요.
+
+## 시작하기
+
+Node.js 24 이상, pnpm을 사용합니다.
+
+```sh
+npx pnpm install
+npx pnpm build
+npx pnpm start
+```
+
+`http://localhost:3000`에서 열립니다. 초기 작품 **푸른 인장의 밤**에는 항구 봉쇄, 보호 문장, 초반 단서와 18장의 회수 관계가 들어 있습니다.
+
+### PostgreSQL과 함께 실행
+
+```sh
+docker compose up --build
+```
+
+`http://localhost:8080`에서 열립니다. PostgreSQL 18 데이터는 Docker volume에 보존됩니다. 개발용 기본 DB 비밀번호는 외부에 공개하지 말고 실제 배포에서는 바꾸세요.
+
+Node 서버만 직접 실행하려면 `.env.example`을 참고해 `.env`를 만들고 `DATABASE_URL`을 설정합니다. `DATABASE_URL`이 없으면 `app/data/local-state.json`에 원자적으로 저장합니다. 파일 모드는 단일 프로세스 개발용이며 다중 Worker에는 PostgreSQL을 사용하세요.
+
+### 실제 모델 연결
+
+```dotenv
+OPENAI_API_KEY=your-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+OpenAI 호환 Chat Completions API의 JSON 출력을 로컬 Zod 스키마로 검증합니다. 키는 서버에만 보관하며 브라우저 응답에 포함하지 않습니다. 키가 없으면 **AI가 아닌 로컬 예제 모드**로 표시됩니다. 제공자 장애를 예제 응답으로 숨기지 않습니다. 실제 모델의 문학적 품질이나 제공자의 데이터 보관 정책은 보장하지 않습니다.
+
+### 개발
+
+```sh
+npx pnpm dev:api
+# 별도 터미널
+npx pnpm dev
+```
+
+Vite는 5173, API는 3000 포트입니다. `PORT`로 API 실행 포트를 바꿀 수 있습니다. 운영 빌드는 API 서버가 `dist/`를 직접 제공합니다.
+
+## 사용 흐름
+
+1. 왼쪽 목록에서 장면을 선택해 본문과 관련 맥락을 확인합니다.
+2. 직접 편집 후 **초안 저장**으로 미채택 작업을 보존합니다.
+3. 피드백을 입력하거나 직접 편집한 원고로 수정 후보를 만듭니다.
+4. 후보의 전후 원고와 영향 검토 대상을 확인합니다. 검토 대상에 포함되어도 다른 장면은 자동 재작성되지 않습니다.
+5. **채택**하면 해시·현재 head·보호 문장을 검사하고 새로운 snapshot을 만듭니다. 후보 생성만으로는 head가 바뀌지 않습니다.
+6. 버전 기록에서 과거 내용을 복원하거나 Markdown 원고를 내보냅니다. 복원도 새 이력을 남깁니다.
+7. **버전 기록 → 작업본 스냅샷**에서 선택한 버전의 Markdown·DOCX·manifest를 내려받습니다. 미채택 초안은 포함되지 않습니다.
+8. **판본 발행**에서 장면 목록·분량·manifest hash를 확인하고 승인하면 작업실 안에 불변 판본을 기록합니다. 외부 서점이나 플랫폼에 공개하는 동작은 아닙니다.
+9. 다음 판본은 가장 최근 판본을 명시적으로 승인한 개정판으로 기록합니다. 작업 원고를 수정하거나 복원해도 이전 판본의 원문과 다운로드는 바뀌지 않습니다.
+10. **버전 기록 → 작업 분기**에서 현재 작업본 또는 맥락이 기록된 과거 스냅샷으로 새 분기를 만듭니다. 생성만으로 전환되지 않으며, 초안·후보·피드백은 원래 분기에 남습니다.
+11. 분기를 바꾸면 해당 분기의 원고·기획·초안·후보·실행 기록을 다시 불러옵니다. 실행 중인 작업을 먼저 완료하거나 취소해야 전환할 수 있습니다.
+
+## 구현된 기반
+
+- React 19 / TypeScript / Vite 기반 한국어 집필 UI, 기획·타임라인·개정 검토·버전 화면
+- Hono API와 Zod 입력 검사, 멱등 요청 키와 충돌 감지
+- PostgreSQL 트랜잭션 및 행 잠금, 파일 저장 대안
+- 후보와 공식 원고 분리, head 경쟁 검사, SHA-256 후보 해시, 보호 원문 검사
+- 스냅샷 보존과 복원, 감사 및 outbox 레코드
+- 의미 의존성의 순환 안전 탐색과 장거리 검토 대상 표시
+- Unicode code point span 검증, 브라우저 UTF-16 offset 변환
+- 필수 맥락 예산·미정 결정·공개 정책·경계 조건 준비도 검사
+- 상대적 시간 제약의 모순 검출, 증거 부족은 unknown으로 유지
+- 내구성 Run/Job 큐, 원자적 호출 예약, lease fencing, 취소 후 늦은 결과 차단
+- 영구 Run 이벤트와 Last-Event-ID 기반 SSE 재접속
+- 스냅샷별 Markdown·DOCX·manifest 내보내기, 한글·특수문자·줄바꿈 보존
+- 내용 hash와 검토 시점 head에 묶인 판본 발행 승인, 별도 개정판 승인, 불변 판본과 승인·감사·outbox 이력
+- 공유 스냅샷을 기준으로 한 작업 분기 생성·전환, 분기별 초안·기획·후보·실행 격리, 동일 head의 다른 분기에 대한 잘못된 쓰기 차단
+- 기존 작품의 기본 분기 이관과 기존 스냅샷·후보 hash·판본 보존
+
+## 명세 대비 남은 범위
+
+- 현재 API는 UI용 `/api` 경로와 camelCase 계약입니다. 명세 18절의 `/v1/projects/{project_id}` 전체 리소스·snake_case 계약과 완전 호환되지는 않습니다.
+- 저장 모델은 JSONB 집계 문서입니다. 명세 16절의 정규화된 Artifact/Revision/Graph 전체 테이블, 복합 FK와 개별 리비전 질의는 아직 구현하지 않았습니다.
+- 단일 사용자 작업실입니다. 다중 사용자 로그인, 역할별 ACL, Reviewer 블라인드 열람과 프로젝트별 모델 전송 정책은 완전한 배포 전 추가 구현이 필요합니다.
+- P0–P6 전역 기획 자동화, 별도 Extractor/Evaluator, 근거 기반 상태 투영, 의미 diff와 전체 원고 보완 검색은 전체 명세 수준에 도달하지 않았습니다.
+- 여러 Artifact의 atomic bundle, 의미적 부분 채택, 분기 병합·이름 변경·삭제는 후속 구현 대상입니다. 분기 생성·전환과 판본 보관·내보내기는 구현했지만 외부 출판 서비스 연동은 포함하지 않습니다.
+- 분기 도입 이전의 과거 스냅샷에는 기획 맥락이 없을 수 있습니다. 그런 스냅샷의 분기는 차단하며, 현재 기준본이나 맥락이 기록된 새 스냅샷에서 시작해야 합니다. 없는 과거 설정을 현재 설정으로 추정해서 채우지 않습니다.
+- Run은 하나의 후보 작업 단위를 실행합니다. 일반적인 다중 Job DAG, 반복 수정 정책과 공급자별 금액 정산은 미완성입니다. lease 만료 후 사용량이 불명확하면 예약을 유지하고 실패 상태로 남겨 명시적 새 실행을 요구합니다.
+- 모델 사용량을 제공자가 보고하지 않으면 추정치로 구분합니다. 모델 응답 후 저장 전 장애의 중복 과금 가능성을 제거했다고 주장하지 않습니다.
+- 실서비스 인터넷 공개 전 인증·접근제어·백업 복구·부하 검증이 필요합니다. 현재 기본 모드는 신뢰할 수 있는 개인 개발 환경용입니다.
+
+## 검증
+
+```sh
+npx pnpm typecheck
+npx pnpm test
+npx pnpm build
+```
+
+테스트는 생성 문장을 고정하지 않고 원문 보존, 승인 경계, 오래된 베이스, 보호 문장, 멱등성, 시간 제약, span, 취소, lease, 예산 예약, SSE 복구를 검사합니다. 실제 공급자 호출은 API 키가 있는 환경에서 별도로 확인해야 합니다.
+
+현재 100개 테스트가 있으며, 이는 명세의 AT-01–28 전체 인수 통과와 다른 기준입니다. 구성된 제공자 경로는 로컬 OpenAI 호환 HTTP 서버를 통해 실제 Gateway/Worker/승인 흐름을 검사합니다. 분기 테스트는 이관·원고/초안 격리·같은 head에서의 경쟁·멱등성 범위·늦은 Worker 응답을, 판본 테스트는 원본 보존과 승인 경쟁·DOCX 내용 보존을 검사합니다.
+
+분기 API와 호환성은 `docs/branches.md`, 판본 API와 보호 계약은 `docs/editions.md`, 직접 실행한 검증은 `VERIFICATION.md`에 기록했습니다.
+
+## 코드 구조
+
+```text
+src/                    한국어 편집 UI와 API 클라이언트
+app/                    API, 영속 저장, 후보/버전 도메인, 모델 gateway
+packages/domain/        준비도, Unicode span, 시간 제약 검사
+packages/execution/     Run/Job lease, 예약, Worker, SSE
+DESIGN.md               디자인 토큰, 화면 및 접근성 규칙
+compose.yml             PostgreSQL과 앱 실행 구성
+```
+
+DIM 환경의 기존 수명주기 설정은 `.dim/`에 보존했습니다.
