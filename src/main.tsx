@@ -11,6 +11,7 @@ import "./styles/tokens.css"
 import "./styles/layout.css"
 import "./styles/components.css"
 import "./styles/versions.css"
+import "./styles/revision.css"
 import "./styles/responsive.css"
 
 const root = document.getElementById("root")

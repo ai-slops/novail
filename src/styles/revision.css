@@ -1,0 +1,59 @@
+.view-description { max-width: 62ch; margin: var(--space-2) 0 0; color: var(--ink-soft); font-size: var(--type-small); line-height: 1.6; }
+.revision-layout { max-width: var(--measure-ledger); margin-inline: auto; display: grid; grid-template-columns: var(--measure-preview) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.proposal-rail { display: grid; gap: var(--space-2); }
+.proposal-rail > header { display: flex; justify-content: space-between; padding: var(--space-3); border-bottom: 1px solid var(--rule); font-size: var(--type-small); }
+.proposal-rail > button { display: grid; gap: var(--space-2); min-height: 44px; padding: var(--space-3); border: 1px solid var(--rule); border-radius: var(--radius-md); background: var(--paper); text-align: start; cursor: pointer; }
+.proposal-rail > button.active { border-color: var(--teal); background: var(--teal-wash); }
+.proposal-rail small { color: var(--ink-faint); }
+.proposal-review { min-width: 0; padding: var(--space-5); border: 1px solid var(--rule); background: var(--paper); }
+.proposal-review > header { display: flex; justify-content: space-between; gap: var(--space-4); border-bottom: 1px solid var(--rule); padding-block-end: var(--space-4); }
+.proposal-review h3 { margin: var(--space-1) 0 0; font-family: "Nanum Myeongjo", Batang, serif; }
+.proposal-review code, .merge-identities code { max-width: var(--measure-preview); overflow-wrap: anywhere; color: var(--ink-faint); font-size: var(--type-caption); }
+.review-callout, .mechanical-note { display: flex; align-items: flex-start; gap: var(--space-2); margin: var(--space-4) 0; padding: var(--space-3); background: var(--amber-wash); color: var(--amber); font-size: var(--type-small); }
+.review-callout p, .mechanical-note { line-height: 1.6; }
+.review-callout p { margin: 0; color: var(--ink-soft); }
+.bundle-list, .impact-review { display: grid; gap: var(--space-2); margin-block: var(--space-5); padding: var(--space-4); border: 1px solid var(--rule); }
+.bundle-list label, .impact-review label { display: flex; align-items: flex-start; gap: var(--space-3); min-height: 44px; }
+.bundle-list label span, .impact-review label span { display: grid; gap: var(--space-1); }
+.bundle-list small, .impact-review small { color: var(--ink-faint); }
+.artifact-diffs { display: grid; gap: var(--space-4); }
+.artifact-diff { border: 1px solid var(--rule); }
+.artifact-diff > header { display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--paper-inset); }
+.artifact-diff > header span { color: var(--teal); font-size: var(--type-caption); font-weight: 700; text-transform: uppercase; }
+.artifact-diff .comparison-grid { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding: var(--space-4); margin: 0; gap: var(--space-3); }
+.artifact-diff pre { max-height: var(--measure-preview); overflow: auto; white-space: pre-wrap; font-family: "Nanum Myeongjo", Batang, serif; font-size: var(--type-small); line-height: 1.7; }
+.blocked-reason, .dialog-error { display: flex; gap: var(--space-2); color: var(--danger); font-size: var(--type-small); }
+.proposal-review > footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); margin-block-start: var(--space-5); }
+.legacy-proposals { max-width: var(--measure-ledger); margin: var(--space-8) auto 0; border-top: 1px solid var(--rule); padding-block-start: var(--space-5); }
+.legacy-proposals > header { display: flex; justify-content: space-between; gap: var(--space-5); color: var(--ink-soft); }
+.legacy-proposals article { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-2); align-items: center; padding: var(--space-3); background: var(--paper); border-bottom: 1px solid var(--rule); }
+.legacy-proposals article > div { display: grid; gap: var(--space-1); }
+.revision-dialog { width: min(var(--measure-dialog-wide), calc(100% - var(--space-8))); max-height: calc(100dvh - var(--space-8)); overflow: auto; }
+.artifact-choices { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.artifact-choices fieldset { min-width: 0; border: 1px solid var(--rule); }
+.artifact-choice { padding: var(--space-2); border-bottom: 1px solid var(--rule); }
+.artifact-choice > label { min-height: 44px; display: flex; align-items: center; gap: var(--space-2); }
+.artifact-choice textarea { width: 100%; min-height: calc(var(--space-16) + var(--space-12)); padding: var(--space-3); border: 1px solid var(--rule-strong); background: var(--paper); }
+.artifact-choice .danger-check { color: var(--danger); font-size: var(--type-caption); }
+.feedback-actions { display: flex; gap: var(--space-2); margin-block-start: var(--space-2); }
+.feedback-actions button { border: 0; background: transparent; color: var(--teal); text-decoration: underline; cursor: pointer; }
+.v2-summary > .button { width: 100%; margin-block-start: var(--space-3); }
+.merge-dialog { width: min(var(--measure-dialog-merge), calc(100% - var(--space-8))); max-height: calc(100dvh - var(--space-8)); overflow: auto; }
+.merge-source { display: grid; gap: var(--space-4); padding: var(--space-5); }
+.merge-source select { min-height: 44px; padding: var(--space-2); border: 1px solid var(--rule-strong); background: var(--paper); }
+.merge-identities { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.merge-identities span { display: grid; gap: var(--space-1); padding: var(--space-3); background: var(--paper-inset); }
+.merge-items { display: grid; gap: var(--space-3); max-height: 44dvh; overflow: auto; }
+.merge-items article { padding: var(--space-4); border: 1px solid var(--rule); }
+.merge-items article > header { display: flex; justify-content: space-between; gap: var(--space-3); }
+.merge-items fieldset { display: flex; gap: var(--space-4); border: 0; padding: var(--space-2) 0; }
+.merge-three-way { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.merge-value { min-width: 0; padding: var(--space-3); background: var(--paper-inset); border-top: 2px solid var(--rule-strong); }
+.merge-value h4 { margin: 0 0 var(--space-2); font-size: var(--type-caption); color: var(--ink-soft); }
+.merge-value pre { max-height: var(--measure-preview); margin: 0; overflow: auto; white-space: pre-wrap; font-family: "Nanum Myeongjo", Batang, serif; font-size: var(--type-caption); line-height: 1.6; }
+.merge-value-unknown { color: var(--amber); font-size: var(--type-caption); }
+.merge-custom-plan { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-3); }
+
+@media (max-width: 960px) { .revision-layout { grid-template-columns: 1fr; } .proposal-rail { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); } .proposal-rail > header { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .artifact-diff .comparison-grid, .artifact-choices, .merge-identities, .merge-three-way, .merge-custom-plan { grid-template-columns: 1fr; } .artifact-diff .comparison-grid > svg { transform: rotate(90deg); } .legacy-proposals article { grid-template-columns: 1fr; } .merge-items fieldset { display: grid; } }
+.composer-fields { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: var(--space-4); }
