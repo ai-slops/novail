@@ -1,0 +1,34 @@
+.app-shell { height: 100dvh; display: grid; grid-template-rows: 64px 48px minmax(0, 1fr); overflow: hidden; background: var(--canvas); }
+.topbar { display: flex; align-items: center; gap: var(--space-5); padding-inline: var(--space-5); background: var(--paper); border-bottom: 1px solid var(--rule); min-width: 0; }
+.brand-lockup { display: flex; align-items: center; gap: var(--space-2); }
+.brand-seal { display: grid; place-items: center; width: 30px; aspect-ratio: 1; border-radius: 50%; background: var(--teal); color: var(--paper); font-family: Georgia, "Times New Roman", serif; font-size: var(--type-h2); font-weight: 700; }
+.brand-seal.large { width: 56px; font-size: var(--type-display); }
+.brand-name { font-family: Georgia, "Times New Roman", serif; font-weight: 700; letter-spacing: .08em; }
+.breadcrumb { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--type-small); color: var(--ink-faint); }
+.breadcrumb span, .breadcrumb strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.breadcrumb i { font-style: normal; color: var(--rule-strong); }
+.breadcrumb strong { color: var(--ink-soft); }
+.topbar-actions { display: flex; align-items: center; gap: var(--space-2); margin-inline-start: auto; }
+.saved-state { display: flex; align-items: center; gap: var(--space-1); color: var(--success); font-size: var(--type-caption); font-weight: 700; }
+.saved-state svg { width: var(--icon-sm); }
+.revision-label { font-size: var(--type-caption); color: var(--ink-faint); font-variant-numeric: tabular-nums; padding-inline: var(--space-2); }
+.mode-tabs { display: flex; align-items: stretch; padding-inline: calc(248px + var(--space-5)); background: var(--paper); border-bottom: 1px solid var(--rule); overflow-x: auto; }
+.mode-tabs button { position: relative; display: flex; align-items: center; gap: var(--space-2); border: 0; border-bottom: 2px solid transparent; background: transparent; padding-inline: var(--space-4); min-width: max-content; color: var(--ink-faint); font-size: var(--type-small); cursor: pointer; }
+.mode-tabs button:hover { color: var(--ink); }
+.mode-tabs button.active { color: var(--teal); border-bottom-color: var(--teal); font-weight: 700; }
+.mode-tabs button i { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+.workspace { min-height: 0; display: grid; grid-template-columns: 248px minmax(420px, 1fr) 332px; overflow: hidden; }
+.sidebar, .context-panel, .manuscript-pane, .secondary-view { min-height: 0; overflow: auto; }
+.sidebar { grid-column: 1; grid-row: 1; background: var(--nav); color: var(--nav-text); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+.manuscript-pane { grid-column: 2; padding: var(--space-8) clamp(var(--space-5), 4vw, var(--space-12)) var(--space-12); }
+.context-panel { grid-column: 3; background: var(--paper); border-left: 1px solid var(--rule); padding: var(--space-5); }
+.secondary-view { grid-column: 2 / 4; padding: var(--space-10) clamp(var(--space-6), 5vw, var(--space-16)); background: var(--paper-inset); }
+.view-header { display: flex; align-items: end; justify-content: space-between; gap: var(--space-6); margin-block-end: var(--space-8); }
+.view-header h2 { margin: var(--space-1) 0 0; font-family: "Nanum Myeongjo", Batang, serif; font-size: var(--type-display); }
+.loading-screen { min-height: 100dvh; display: grid; place-content: center; justify-items: center; padding: var(--space-8); text-align: center; background: var(--paper); }
+.loading-screen h1 { font-family: "Nanum Myeongjo", Batang, serif; font-size: var(--type-display); margin: var(--space-3) 0; }
+.loading-screen > p:not(.overline) { color: var(--ink-soft); max-width: 36ch; line-height: 1.6; }
+.loading-screen .overline { margin-block-start: var(--space-5); }
+.loading-rule { width: 96px; height: 2px; margin-block-start: var(--space-6); overflow: hidden; background: var(--rule); }
+.loading-rule::after { content: ""; display: block; width: 48px; height: 100%; background: var(--teal); animation: load 1.4s ease-in-out infinite alternate; }
+@keyframes load { to { transform: translateX(48px); } }

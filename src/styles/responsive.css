@@ -1,0 +1,54 @@
+@media (max-width: 1180px) {
+  .workspace { grid-template-columns: 220px minmax(380px, 1fr) 300px; }
+  .mode-tabs { padding-inline-start: calc(220px + var(--space-4)); }
+  .topbar .saved-state, .topbar .revision-label { display: none; }
+  .context-panel { padding: var(--space-4); }
+}
+
+@media (max-width: 960px) {
+  .mobile-only { display: inline-flex; }
+  .app-shell { grid-template-rows: 60px 48px minmax(0, 1fr); }
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .mode-tabs { padding-inline: var(--space-3); }
+  .sidebar, .context-panel { position: fixed; z-index: 40; inset-block: 0; width: min(88vw, 340px); box-shadow: var(--shadow-float); transition: transform var(--motion-standard); }
+  .sidebar { inset-inline-start: 0; transform: translateX(-105%); visibility: hidden; }
+  .sidebar.is-open { transform: translateX(0); visibility: visible; }
+  .context-panel { inset-inline-end: 0; transform: translateX(105%); visibility: hidden; }
+  .context-panel.is-open { transform: translateX(0); visibility: visible; }
+  .manuscript-pane, .secondary-view { grid-column: 1; }
+  .breadcrumb { flex: 1; }
+  .topbar-actions .button.quiet { display: none; }
+  .topbar-actions .icon-button { display: inline-flex; }
+  .board-grid { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .brand-name, .breadcrumb span, .breadcrumb i { display: none; }
+  .breadcrumb .header-branch { display: block; }
+  .breadcrumb .header-branch svg, .breadcrumb strong { display: none; }
+  .topbar { gap: var(--space-2); padding-inline: var(--space-3); }
+  .topbar-actions { gap: 0; }
+  .mode-tabs button { padding-inline: var(--space-3); }
+  .mode-tabs button svg { display: none; }
+  .manuscript-pane { padding: var(--space-4) var(--space-3) var(--space-8); }
+  .manuscript-toolbar { align-items: flex-start; }
+  .manuscript-toolbar .toolbar-actions { justify-content: flex-end; }
+  .toolbar-actions .button { width: 44px; padding: 0; font-size: 0; }
+  .toolbar-actions .button svg { width: var(--icon-md); }
+  .paper { padding: var(--space-6) var(--space-5); min-height: calc(100dvh - 180px); }
+  .paper-meta { flex-wrap: wrap; }
+  .manuscript { font-size: var(--type-body); line-height: 1.9; }
+  .secondary-view { padding: var(--space-8) var(--space-4); }
+  .view-header { align-items: flex-start; }
+  .board-grid { grid-template-columns: 1fr; }
+  .dialog { width: calc(100% - var(--space-6)); }
+  .candidate-actions, .dialog footer { flex-direction: column-reverse; }
+  .candidate-actions .button, .dialog footer .button { width: 100%; }
+  .review-ledger article { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+  .review-ledger article > .icon-button { justify-self: end; }
+  .version-list article { grid-template-columns: 44px minmax(0, 1fr); gap: var(--space-3); }
+  .version-list article > .button { grid-column: 2; justify-self: start; }
+  .timeline-line button { grid-template-columns: 44px minmax(0, 1fr); gap: var(--space-3); }
+  .timeline-node { grid-row: 1 / span 4; }
+  .timeline-line button small, .timeline-line button strong, .timeline-line button p, .timeline-line .character-row { grid-column: 2; margin: 0; padding: 0; }
+}
