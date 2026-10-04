@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://novail:${POSTGRES_PASSWORD:-novail-local}@postgres:5432/novail
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+    ports:
+      - "127.0.0.1:8080:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: novail
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-novail-local}
+      POSTGRES_DB: novail
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - novail-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novail -d novail"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  novail-data:

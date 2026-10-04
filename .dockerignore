@@ -1,0 +1,12 @@
+.git
+.dim
+.codegraph
+.env
+node_modules
+dist
+app/data
+data
+.data
+test-results
+*.log
+.playwright-mcp
