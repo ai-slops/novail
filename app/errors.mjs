@@ -5,3 +5,11 @@ export class DomainError extends Error {
     this.status = status;
   }
 }
+
+export class GenerationError extends DomainError {
+  constructor(code, message, evidence) {
+    super(code, message, evidence.status ?? 502);
+    this.outputTokens = evidence.outputTokens;
+    this.invocationStarted = evidence.invocationStarted;
+  }
+}

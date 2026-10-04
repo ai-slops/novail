@@ -1,4 +1,5 @@
 import { claimJob, completeJob } from './queue.mjs';
+import { GenerationError } from '../../app/errors.mjs';
 
 export function createWorker({ store, execute, finalize }) {
   let busy = false;
@@ -10,23 +11,27 @@ export function createWorker({ store, execute, finalize }) {
     if (busy || stopped) return;
     busy = true;
     let claim;
+    let payload;
     try {
       claim = await claimJob(store);
       if (!claim) return;
       const controller = new AbortController();
       active.set(claim.run.id, controller);
-      const payload = await execute({ run: claim.run, signal: controller.signal });
+      payload = await execute({ run: claim.run, signal: controller.signal });
       await completeJob(store, {
         jobId: claim.job.id, leaseToken: claim.job.leaseToken,
-        outputTokens: payload.outputTokens ?? Array.from(payload.text).length,
+        outputTokens: payload.outputTokens ?? payload.estimatedOutputTokens ?? Array.from(payload.text).length,
         usageKnown: typeof payload.outputTokens === 'number',
         payload, finalize,
       });
     } catch (error) {
       if (!claim) throw error;
+      const reportedTokens = payload?.outputTokens ?? (error instanceof GenerationError ? error.outputTokens : undefined);
       await completeJob(store, {
         jobId: claim.job.id, leaseToken: claim.job.leaseToken,
         error: { code: error instanceof Error && 'code' in error ? error.code : 'GENERATION_FAILED', message: error instanceof Error ? error.message : '생성 실패' },
+        outputTokens: reportedTokens ?? 0, usageKnown: typeof reportedTokens === 'number',
+        releaseReservation: error instanceof GenerationError && !error.invocationStarted,
       });
     } finally {
       if (claim) active.delete(claim.run.id);
