@@ -17,6 +17,9 @@ import { buildGenerationContext } from "./readiness.mjs";
 import { mountEditionRoutes } from "./edition-routes.mjs";
 import { createCommandHandler, prepareCommand } from "./commands.mjs";
 import { mountBranchRoutes } from "./branch-routes.mjs";
+import { mountRevisionRoutes } from "./change-set-routes.mjs";
+import { mountRepairRoutes } from "./repair-routes.mjs";
+import { mountMergeRoutes } from "./merge-routes.mjs";
 import { assertReadScope, branchHeader } from "./branch-scope.mjs";
 
 const id = z.string().min(1).max(200);
@@ -178,6 +181,9 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
   if (worker) mountRunRoutes(app, { store, worker });
   mountEditionRoutes(app, { store, command: (context, input, operation) => command(context, { body: input, status: 201 }, operation) });
   mountBranchRoutes(app, { store, command });
+  mountRevisionRoutes(app, { store, command });
+  mountRepairRoutes(app, { store });
+  mountMergeRoutes(app, { store, command });
 
   app.all("/api/*", (context) => context.json({ error: { code: "NOT_FOUND", message: "API 경로를 찾을 수 없습니다." } }, 404));
 
