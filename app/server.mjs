@@ -1,8 +1,26 @@
-import { createServer } from "node:http";
+import { serve } from "@hono/node-server";
 
-const server = createServer((_request, response) => {
-  response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
-  response.end("hello from a single-repository DIM workspace\n");
+import { createApp } from "./api.mjs";
+import { createApplicationWorker } from "./execution.mjs";
+import { createStore } from "./store.mjs";
+
+const store = createStore();
+await store.initialize();
+
+const worker = createApplicationWorker(store);
+worker.start();
+
+const server = serve({
+  fetch: createApp({ store, worker }).fetch,
+  hostname: "0.0.0.0",
+  port: Number(process.env.PORT ?? 3000),
 });
 
-server.listen(3000, "0.0.0.0");
+const shutdown = async () => {
+  worker.stop();
+  server.close();
+  await store.close();
+};
+
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);
