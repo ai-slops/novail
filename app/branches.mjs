@@ -4,6 +4,7 @@ import { appendEvent } from './events.mjs';
 import { activeBranch, assertIdleWorkspace, branchFields, branchSummary, captureWorkspace, getBranchSnapshot, validateBranches } from './branch-state.mjs';
 import { narrativeContext } from './snapshots.mjs';
 import { publicState } from './queries.mjs';
+import { ancestorIds } from '../packages/revision/ancestry.mjs';
 
 function assertExpected(state, input) {
   if (state.currentBranchId !== input.expectedBranchId) throw new DomainError('BRANCH_MISMATCH', '분기가 변경되었습니다. 현재 작업본을 다시 확인하세요.', 409);
@@ -24,8 +25,8 @@ export function createBranch(state, input) {
   const origin = activeBranch(state);
   const branch = { id: randomUUID(), name, headSnapshotId: source.id, sourceSnapshotId: source.id,
     sourceBranchId: origin.id, createdAt: new Date().toISOString(),
-    snapshotIds: origin.snapshotIds.slice(0, origin.snapshotIds.indexOf(source.id) + 1),
-    workspace: { scenes, ...structuredClone(context), drafts: {}, candidates: [], feedback: [], runs: [], jobs: [], runEvents: [] } };
+    snapshotIds: ancestorIds(state, source.id),
+    workspace: { scenes, ...structuredClone(context), drafts: {}, candidates: [], changeSets: [], mergePreviews: [], feedback: [], runs: [], jobs: [], runEvents: [] } };
   state.branches.push(branch);
   validateBranches(state);
   appendEvent(state, 'branch.created', { branchId: branch.id, sourceBranchId: origin.id, sourceSnapshotId: source.id, humanRequested: true });
