@@ -4,8 +4,9 @@ import type { Candidate } from "../types"
 import type { ChangeEntry, ChangeSet } from "../../packages/revision/contracts"
 import { deriveChangeSet, mutate, promoteCandidate } from "../api"
 import { RevisionComposer } from "./RevisionComposer"
+import { EvaluationWorkspace } from "./EvaluationWorkspace"
 
-type Props = Readonly<{ changeSets: readonly ChangeSet[]; candidates: readonly Candidate[]; branchId: string; head: string; busy: boolean; onRefresh: () => Promise<void>; onScene: (id: string) => void }>
+type Props = Readonly<{ changeSets: readonly ChangeSet[]; candidates: readonly Candidate[]; branchId: string; head: string; busy: boolean; onRefresh: () => Promise<void>; onDirtyChange: (dirty: boolean) => void; onBeforeDiscard: () => boolean; onScene: (id: string) => void }>
 
 export function RevisionWorkspace(props: Props) {
   const [selectedId, setSelectedId] = useState(props.changeSets.at(-1)?.id ?? "")
@@ -13,21 +14,28 @@ export function RevisionWorkspace(props: Props) {
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selected = props.changeSets.find((item) => item.id === selectedId) ?? props.changeSets.at(-1)
-  const act = async (action: () => Promise<void>) => { setWorking(true); setError(null); try { await action(); await props.onRefresh() } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : "요청을 완료하지 못했습니다.") } finally { setWorking(false) } }
+  const act = async (action: () => Promise<void>): Promise<boolean> => { setWorking(true); setError(null); try { await action(); await props.onRefresh(); return true } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : "요청을 완료하지 못했습니다."); return false } finally { setWorking(false) } }
+  const selectProposal = (id: string) => {
+    if (id === selected?.id || !props.onBeforeDiscard()) return
+    setSelectedId(id)
+    props.onDirtyChange(false)
+  }
+  const openComposer = (mode: "manual" | "repair") => { if (props.onBeforeDiscard()) setComposer(mode) }
   return <main className="secondary-view revision-workspace" id="main-content">
     <header className="view-header"><div><p className="overline">HUMAN-IN-THE-LOOP V2</p><h2>개정 검토</h2><p className="view-description">기계적 검증과 사람의 서사 판단은 서로 다릅니다. 영향 대상을 확인한 뒤에만 기준본을 바꿀 수 있습니다.</p></div>
-      <div className="toolbar-actions"><button className="button quiet" type="button" disabled={props.busy || working} onClick={() => setComposer("manual")}><FilePenLine /> 수동 제안</button><button className="button primary" type="button" disabled={props.busy || working} onClick={() => setComposer("repair")}><Bot /> AI 수정 제안</button></div></header>
-    <div className="revision-layout"><ProposalRail changeSets={props.changeSets} selectedId={selected?.id ?? ""} onSelect={setSelectedId} />
-      {selected ? <ProposalReview key={selected.id} changeSet={selected} busy={props.busy || working} error={error}
-        onDerive={(ids) => act(async () => { const child = await deriveChangeSet(selected.id, ids, props.branchId); setSelectedId(child.id) })}
-        onCommit={(reviewedKeys) => act(() => mutate(`api/change-sets/${selected.id}/commit`, { expectedHead: props.head, approvedHash: selected.hash, reviewedKeys, decision: "accept", policyVersion: 2 }, props.branchId))}
-        onReject={() => act(() => mutate(`api/change-sets/${selected.id}/reject`, { decision: "reject" }, props.branchId))} /> : <EmptyReview />}
+      <div className="toolbar-actions"><button className="button quiet" type="button" disabled={props.busy || working} onClick={() => openComposer("manual")}><FilePenLine /> 수동 제안</button><button className="button primary" type="button" disabled={props.busy || working} onClick={() => openComposer("repair")}><Bot /> AI 수정 제안</button></div></header>
+    <div className="revision-layout"><ProposalRail changeSets={props.changeSets} selectedId={selected?.id ?? ""} onSelect={selectProposal} />
+      {selected ? <ProposalReview key={`${props.branchId}:${selected.id}`} changeSet={selected} branchId={props.branchId} busy={props.busy || working} error={error}
+        onDirtyChange={props.onDirtyChange} onBeforeDiscard={props.onBeforeDiscard}
+        onDerive={async (ids) => { if (!props.onBeforeDiscard()) return; let childId = ""; const succeeded = await act(async () => { childId = (await deriveChangeSet(selected.id, ids, props.branchId)).id }); if (succeeded) { setSelectedId(childId); props.onDirtyChange(false) } }}
+        onCommit={async (reviewedKeys) => { await act(() => mutate(`api/change-sets/${selected.id}/commit`, { expectedHead: props.head, approvedHash: selected.hash, reviewedKeys, decision: "accept", policyVersion: 2 }, props.branchId)) }}
+        onReject={async () => { await act(() => mutate(`api/change-sets/${selected.id}/reject`, { decision: "reject" }, props.branchId)) }} /> : <EmptyReview />}
     </div>
     {error && !selected ? <p className="dialog-error" role="alert">{error}</p> : null}
     <LegacyCandidates candidates={props.candidates} busy={props.busy || working} onScene={props.onScene}
-      onReject={(candidate) => act(() => mutate(`api/candidates/${candidate.id}/reject`, {}, props.branchId))}
-      onPromote={(candidate) => act(async () => { const created = await promoteCandidate(candidate.id, props.head, props.branchId); setSelectedId(created.id) })} />
-    {composer ? <RevisionComposer mode={composer} branchId={props.branchId} onClose={() => setComposer(null)} onCreated={async (id) => { await props.onRefresh(); if (id) setSelectedId(id) }} /> : null}
+      onReject={async (candidate) => { await act(() => mutate(`api/candidates/${candidate.id}/reject`, {}, props.branchId)) }}
+      onPromote={async (candidate) => { if (!props.onBeforeDiscard()) return; let createdId = ""; const succeeded = await act(async () => { createdId = (await promoteCandidate(candidate.id, props.head, props.branchId)).id }); if (succeeded) { setSelectedId(createdId); props.onDirtyChange(false) } }} />
+    {composer ? <RevisionComposer mode={composer} branchId={props.branchId} onClose={() => setComposer(null)} onCreated={async (id) => { await props.onRefresh(); if (id) { setSelectedId(id); props.onDirtyChange(false) } }} /> : null}
   </main>
 }
 
@@ -38,7 +46,7 @@ function ProposalRail({ changeSets, selectedId, onSelect }: Readonly<{ changeSet
 const statusLabels: Readonly<Record<string, string>> = { pending: "검토 대기", committed: "채택 완료", stale_candidate: "기준본 변경됨", rejected: "거절됨", cancelled: "취소됨", partially_applied: "부분 채택됨" }
 const statusLabel = (status: string): string => statusLabels[status] ?? status
 
-function ProposalReview({ changeSet, busy, error, onDerive, onCommit, onReject }: Readonly<{ changeSet: ChangeSet; busy: boolean; error: string | null; onDerive: (ids: readonly string[]) => Promise<void>; onCommit: (keys: readonly string[]) => Promise<void>; onReject: () => Promise<void> }>) {
+function ProposalReview({ changeSet, branchId, busy, error, onDirtyChange, onBeforeDiscard, onDerive, onCommit, onReject }: Readonly<{ changeSet: ChangeSet; branchId: string; busy: boolean; error: string | null; onDirtyChange: (dirty: boolean) => void; onBeforeDiscard: () => boolean; onDerive: (ids: readonly string[]) => Promise<void>; onCommit: (keys: readonly string[]) => Promise<void>; onReject: () => Promise<void> }>) {
   const [selectedBundles, setSelectedBundles] = useState<readonly string[]>(changeSet.bundles.map((bundle) => bundle.id))
   const [reviewed, setReviewed] = useState<readonly string[]>([])
   const selectedChanges = changeSet.bundles.filter((bundle) => selectedBundles.includes(bundle.id)).flatMap((bundle) => bundle.changeIds)
@@ -51,6 +59,7 @@ function ProposalReview({ changeSet, busy, error, onDerive, onCommit, onReject }
     <section className="review-callout"><strong>검토 ≠ 재작성</strong><p>영향 검토 목록은 확인해야 할 범위이며, 모델이 자동으로 다시 쓰는 범위가 아닙니다. 변경하지 않는 영향 대상은 반드시 확인하세요.</p></section>
     {canSelectBundles ? <fieldset className="bundle-list"><legend>부분 채택 묶음</legend>{changeSet.bundles.map((bundle) => <label key={bundle.id}><input type="checkbox" disabled={busy || changeSet.status !== "pending"} checked={selectedBundles.includes(bundle.id)} onChange={() => setSelectedBundles((current) => current.includes(bundle.id) ? current.filter((id) => id !== bundle.id) : [...current, bundle.id])} /><span><strong>{bundle.label}</strong><small>{bundle.changeIds.length}개 변경 · 완전한 묶음 단위</small></span></label>)}</fieldset> : null}
     <div className="artifact-diffs">{changeSet.entries.map((entry) => <EntryDiff key={entry.id} entry={entry} />)}</div>
+    <EvaluationWorkspace changeSet={changeSet} branchId={branchId} onDirtyChange={onDirtyChange} onBeforeDiscard={onBeforeDiscard} />
     <section className="impact-review"><h4>영향 확인</h4>{changeSet.impact.reviewSet.map((target) => <label key={target.key}><input type="checkbox" disabled={busy} checked={reviewed.includes(target.key)} onChange={() => setReviewed((current) => current.includes(target.key) ? current.filter((key) => key !== target.key) : [...current, target.key])} /><span><strong>{target.title}</strong><small>{target.changed ? "변경됨" : "변경되지 않은 영향 대상 · 필수 확인"} · {target.reasons.join(" · ")}</small></span></label>)}</section>
     {changeSet.impact.warnings.map((warning) => <p className="mechanical-note" key={warning}>{warning}</p>)}
     {changeSet.issues.map((issue) => <p className="blocked-reason" key={`${issue.code}:${issue.keys.join(",")}`}><AlertTriangle /> {issue.message}</p>)}

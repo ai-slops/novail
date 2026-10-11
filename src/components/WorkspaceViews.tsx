@@ -26,6 +26,8 @@ type ViewProps = Readonly<{
   onCreateBranch: (name: string, sourceSnapshotId: string) => Promise<boolean>
   onRefresh: () => Promise<void>
   onRevisionRefresh: () => Promise<void>
+  onDirtyChange: (dirty: boolean) => void
+  onBeforeDiscard: () => boolean
   onScene: (id: string) => void
 }>
 
@@ -33,7 +35,7 @@ export function WorkspaceViews(props: ViewProps) {
   if (props.tab === "원고") return <main className="secondary-view" id="main-content"><ViewHeader eyebrow="YOUR FIRST SCENE" title="첫 장면을 시작하세요" /><div className="empty-review"><p>아직 원고가 없습니다. 첫 문장이나 장면 메모로 이야기를 시작할 수 있습니다.</p><button className="button primary" type="button" onClick={props.onNewScene}>첫 장면 만들기</button></div></main>
   if (props.tab === "기획 보드") return <PlanningBoard {...props} />
   if (props.tab === "타임라인") return <Timeline {...props} />
-  if (props.tab === "개정 검토") return <RevisionWorkspace changeSets={props.changeSets} candidates={props.candidates} branchId={props.currentBranchId} head={props.head} busy={props.busy} onRefresh={props.onRevisionRefresh} onScene={props.onScene} />
+  if (props.tab === "개정 검토") return <RevisionWorkspace changeSets={props.changeSets} candidates={props.candidates} branchId={props.currentBranchId} head={props.head} busy={props.busy} onRefresh={props.onRevisionRefresh} onDirtyChange={props.onDirtyChange} onBeforeDiscard={props.onBeforeDiscard} onScene={props.onScene} />
   return <Versions snapshots={props.snapshots} editions={props.editions} head={props.head} workspaceHash={props.workspaceHash} busy={props.busy} latestRun={props.runs.at(-1)} branches={props.branches} currentBranchId={props.currentBranchId} onSwitchBranch={props.onSwitchBranch} onCreateBranch={props.onCreateBranch} onRefresh={props.onRefresh} onRevisionRefresh={props.onRevisionRefresh} onRestore={props.onRestore} onPublished={props.onPublished} />
 }
 
