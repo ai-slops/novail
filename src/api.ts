@@ -1,9 +1,11 @@
 import ky, { HTTPError } from "ky"
 import type { BranchSummary, ExportPreview, PublishEditionInput, WorkspaceState, EditionSummary } from "./types"
 import { branchSummarySchema, editionSummarySchema, exportPreviewSchema, workspaceSchema, runCompletionSchema } from "./schema"
-import { branchHeaders, snapshotExportUrl } from "./api-contract"
+import { branchHeaders } from "./api-contract"
 import { changeSetSchema, mergePreviewSchema, revisionContextSchema } from "../packages/revision/contracts.ts"
 import type { ChangeSet, MergePreview, RevisionContext } from "../packages/revision/contracts.ts"
+import { evaluationReportRequestSchema, evaluationReportSchema, evaluationReportsResponseSchema } from "../packages/revision/evaluation-contracts.ts"
+import type { EvaluationReport, EvaluationReportRequest, EvaluationReportsResponse } from "../packages/revision/evaluation-contracts.ts"
 
 export { snapshotExportUrl } from "./api-contract"
 
@@ -74,6 +76,18 @@ export const promoteCandidate = async (id: string, expectedHead: string, branchI
 export const createMergePreview = async (input: Readonly<Record<string, unknown>>, branchId: string): Promise<MergePreview> => mergePreviewSchema.parse(await mutateJson<unknown>("api/merge-previews", input, branchId))
 
 export const sealMergePreview = async (id: string, input: Readonly<Record<string, unknown>>, branchId: string): Promise<ChangeSet> => changeSetSchema.parse(await mutateJson<unknown>(`api/merge-previews/${encodeURIComponent(id)}/seal`, input, branchId))
+
+export const getEvaluationReports = (changeSetId: string, branchId: string): Promise<EvaluationReportsResponse> => parseGet(
+  `api/change-sets/${encodeURIComponent(changeSetId)}/evaluation-reports`,
+  branchId,
+  (value) => evaluationReportsResponseSchema.parse(value),
+)
+
+export const createEvaluationReport = async (changeSetId: string, input: EvaluationReportRequest, branchId: string): Promise<EvaluationReport> => {
+  const validated = evaluationReportRequestSchema.safeParse(input)
+  if (!validated.success) throw validated.error
+  return evaluationReportSchema.parse(await mutateJson<unknown>(`api/change-sets/${encodeURIComponent(changeSetId)}/evaluation-reports`, input, branchId))
+}
 
 export const editionExportUrl = (editionId: string, format: "markdown" | "docx" | "manifest") => `/api/editions/${encodeURIComponent(editionId)}/export?format=${format}`
 
