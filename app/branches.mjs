@@ -26,7 +26,7 @@ export function createBranch(state, input) {
   const branch = { id: randomUUID(), name, headSnapshotId: source.id, sourceSnapshotId: source.id,
     sourceBranchId: origin.id, createdAt: new Date().toISOString(),
     snapshotIds: ancestorIds(state, source.id),
-    workspace: { scenes, ...structuredClone(context), drafts: {}, candidates: [], changeSets: [], mergePreviews: [], feedback: [], runs: [], jobs: [], runEvents: [] } };
+    workspace: { scenes, ...structuredClone(context), drafts: {}, candidates: [], changeSets: [], evaluationReports: [], mergePreviews: [], feedback: [], runs: [], jobs: [], runEvents: [] } };
   state.branches.push(branch);
   validateBranches(state);
   appendEvent(state, 'branch.created', { branchId: branch.id, sourceBranchId: origin.id, sourceSnapshotId: source.id, humanRequested: true });

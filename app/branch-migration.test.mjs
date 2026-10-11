@@ -11,6 +11,8 @@ import { canonicalJson } from "../packages/domain/canonical.mjs";
 import { createSeed } from "./seed.mjs";
 import { FileStore } from "./store.mjs";
 import { command, createBranch, readState } from "./branch-test-support.mjs";
+import { createChangeSet } from "../packages/revision/changesets.mjs";
+import { workspaceHash } from "../packages/revision/workspace.mjs";
 
 const withoutBranchModel = (state) => {
   delete state.currentBranchId;
@@ -166,4 +168,64 @@ test('legacy execution records without a run are retained for audit rather than 
   assert.equal(migrated.legacyExecution.jobs[0].id, 'orphan-job');
   assert.equal(migrated.legacyExecution.runEvents[0].id, 'orphan-event');
   assert.deepEqual(migrated.jobs, []);
+});
+
+test("Given revision-v1 active, archived, and parked branch data, when migration runs, then report collections are isolated and V2 hashes remain byte-identical", async (t) => {
+  let originalHash;
+  const { store } = await legacyFixture(t, (state) => {
+    state.currentBranchId = `main-${state.project.id}`;
+    state.branches = [{ id: state.currentBranchId, name: "main", headSnapshotId: state.head,
+      sourceSnapshotId: state.snapshots[0].id, sourceBranchId: null, createdAt: "2026-01-01T00:00:00.000Z",
+      snapshotIds: state.snapshots.map(({ id }) => id) }];
+    const scene = state.scenes[0];
+    const set = createChangeSet(state, { kind: "manual", reason: "Preserve this V2 proposal",
+      changes: [{ kind: "scene", artifactId: scene.id, after: { ...scene, text: `${scene.text} revised` } }],
+      baseSnapshotId: state.head, baseWorkspaceHash: workspaceHash(state), feedbackIds: [], runId: null,
+      candidateId: null, parentChangeSetId: null, atomic: false, merge: null });
+    originalHash = set.hash;
+    state.revisionSchemaVersion = 1;
+    state.evaluationReports = [{ legacy: "active-report" }];
+    const current = state.branches[0];
+    state.branches.push({ id: "parked-branch", name: "parked", headSnapshotId: state.head,
+      sourceSnapshotId: state.head, sourceBranchId: current.id, createdAt: "2026-01-01T00:00:00.000Z",
+      snapshotIds: [state.head], workspace: { scenes: structuredClone(state.scenes), plans: structuredClone(state.plans),
+        dependencies: structuredClone(state.dependencies), contextVersion: state.contextVersion, drafts: {}, feedback: [],
+        candidates: [], changeSets: [], mergePreviews: [], runs: [], jobs: [], runEvents: [] } });
+    const archived = structuredClone(state);
+    archived.project = { ...archived.project, id: "project-evaluation-archive" };
+    archived.currentBranchId = `main-${archived.project.id}`;
+    archived.branches = [{ ...archived.branches[0], id: archived.currentBranchId, sourceBranchId: null }];
+    delete archived.evaluationReports;
+    state.workspaces.push(archived);
+    return state;
+  });
+  const migrated = await store.read();
+  const archived = migrated.workspaces.find(({ project }) => project.id === "project-evaluation-archive");
+  const parked = migrated.branches.find(({ id }) => id === "parked-branch");
+
+  assert.equal(migrated.revisionSchemaVersion, 2);
+  assert.deepEqual(migrated.evaluationReports, [{ legacy: "active-report" }]);
+  assert.deepEqual(archived.evaluationReports, []);
+  assert.deepEqual(parked.workspace.evaluationReports, []);
+  assert.equal(migrated.changeSets[0].hash, originalHash);
+});
+
+test("Given an otherwise current revision-v1 file, when FileStore initializes and reopens, then revision-v2 is persisted to disk", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "novail-revision-v2-migration-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = join(directory, "state.json");
+  const legacy = createSeed();
+  legacy.revisionSchemaVersion = 1;
+  await writeFile(file, `${JSON.stringify(legacy, null, 2)}\n`, "utf8");
+
+  const store = new FileStore(file);
+  await store.initialize();
+  await store.close();
+  const persisted = JSON.parse(await readFile(file, "utf8"));
+  const reopened = new FileStore(file);
+  await reopened.initialize();
+  t.after(() => reopened.close());
+
+  assert.equal(persisted.revisionSchemaVersion, 2);
+  assert.equal((await reopened.read()).revisionSchemaVersion, 2);
 });

@@ -10,7 +10,7 @@ export function updateProject(state, input) {
   state.workspaces.push(captureProject(state));
   const project = {
     project: { id: `project-${randomUUID()}`, title: input.title, subtitle: input.direction, stage: 'planning' },
-    head: null, scenes: [], feedback: [], candidates: [], plans: [], runs: [], jobs: [], runEvents: [],
+    head: null, scenes: [], feedback: [], candidates: [], changeSets: [], evaluationReports: [], mergePreviews: [], plans: [], runs: [], jobs: [], runEvents: [],
     drafts: {}, dependencies: [], contextVersion: 0, editions: [],
   };
   const snapshot = makeSnapshot(project, '새 프로젝트');

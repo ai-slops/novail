@@ -1,7 +1,7 @@
 import { DomainError } from './errors.mjs';
 
 export const branchFields = Object.freeze([
-  'scenes', 'plans', 'dependencies', 'contextVersion', 'drafts', 'feedback', 'candidates', 'changeSets', 'mergePreviews', 'runs', 'jobs', 'runEvents',
+  'scenes', 'plans', 'dependencies', 'contextVersion', 'drafts', 'feedback', 'candidates', 'changeSets', 'evaluationReports', 'mergePreviews', 'runs', 'jobs', 'runEvents',
 ]);
 export const projectFields = Object.freeze([
   ...branchFields, 'project', 'head', 'snapshots', 'editions', 'branches', 'currentBranchId',
@@ -38,6 +38,7 @@ export function initializeProjectBranches(state) {
   state.runEvents ??= [];
   state.editions ??= [];
   state.changeSets ??= [];
+  state.evaluationReports ??= [];
   state.mergePreviews ??= [];
   if (!state.branches) {
     const first = state.snapshots[0];
@@ -50,6 +51,7 @@ export function initializeProjectBranches(state) {
   for (const branch of state.branches) {
     if (branch.workspace) {
       branch.workspace.changeSets ??= [];
+      branch.workspace.evaluationReports ??= [];
       branch.workspace.mergePreviews ??= [];
     }
   }
@@ -74,7 +76,7 @@ export function initializeBranches(state) {
     state.branchSchemaVersion = 1;
   }
   for (const project of projects) initializeProjectBranches(project);
-  state.revisionSchemaVersion = 1;
+  state.revisionSchemaVersion = 2;
   return state;
 }
 
