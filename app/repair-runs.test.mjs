@@ -26,6 +26,13 @@ test('multi-artifact repair creates one reviewed changeset without advancing can
   assert.equal(proposal.kind, 'repair');
   assert.ok(proposal.entries.some((entry) => entry.kind === 'scene'));
   assert.ok(proposal.entries.some((entry) => entry.kind === 'plan'));
+  assert.ok(proposal.reason.includes('로컬 예제 · AI 생성 아님 · part fakeModel'));
+  assert.deepEqual(after.runEvents.filter((event) => event.runId === run.id && event.type === 'runtime.tool.completed')
+    .map((event) => event.details.toolId), [
+    'novail_read_selected_scenes',
+    'novail_read_selected_plans',
+    'novail_read_readonly_context',
+  ]);
 });
 
 test('cancelling repair reopens only feedback orphaned from live proposals', async (t) => {

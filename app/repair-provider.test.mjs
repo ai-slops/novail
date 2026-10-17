@@ -1,63 +1,25 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createServer } from 'node:http';
-import { once } from 'node:events';
-import { branchFixture, command, readState } from './branch-test-support.mjs';
-import { createApplicationWorker } from './execution.mjs';
-import { workspaceHash } from '../packages/revision/workspace.mjs';
-
-async function providerFixture(t, transform) {
-  const fixture = await branchFixture(t);
-  const requests = [];
-  const server = createServer(async (request, response) => {
-    let raw = '';
-    for await (const chunk of request) raw += chunk;
-    const body = JSON.parse(raw);
-    requests.push(body);
-    const input = JSON.parse(body.messages.find((message) => message.role === 'user').content);
-    const patches = await transform(input);
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(patches) }, finish_reason: 'stop' }], usage: { completion_tokens: 40 } }));
-  });
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const address = server.address();
-  assert.ok(address && typeof address === 'object');
-  const oldKey = process.env.OPENAI_API_KEY;
-  const oldBase = process.env.OPENAI_BASE_URL;
-  process.env.OPENAI_API_KEY = 'isolated-test-provider';
-  process.env.OPENAI_BASE_URL = `http://127.0.0.1:${address.port}`;
-  t.after(() => {
-    server.close();
-    if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
-    if (oldBase === undefined) delete process.env.OPENAI_BASE_URL; else process.env.OPENAI_BASE_URL = oldBase;
-  });
-  const state = await readState(fixture.app);
-  const input = { baseSnapshotId: state.head, baseWorkspaceHash: workspaceHash(await fixture.store.read()),
-    instruction: '선택과 결과를 함께 보강', sceneIds: ['scene-1', 'scene-7'], planIds: ['plan-plot'], feedbackIds: [],
-    budget: { maxModelCalls: 1, maxOutputTokens: 2048 } };
-  return { ...fixture, state, input, requests, worker: createApplicationWorker(fixture.store) };
-}
-
-const completePatches = (input) => ({
-  scenes: input.scenes.map((scene) => ({ id: scene.id, text: `${scene.text}\n새로운 결심이 남았다.` })),
-  plans: input.plans.map((plan) => ({ id: plan.id, description: `${plan.description}\n선택의 결과를 확인한다.` })),
-});
-
-async function runRepair(fixture) {
-  const response = await command(fixture.app, '/api/repair-runs', fixture.input, { branchId: fixture.state.currentBranchId });
-  assert.equal(response.status, 202);
-  const run = await response.json();
-  await fixture.worker.tick();
-  const state = await fixture.store.read();
-  return { state, run: state.runs.find((item) => item.id === run.id) };
-}
+import { command } from './branch-test-support.mjs';
+import { completePatches, providerFixture, runRepair, TOOL_IDS } from './repair-provider-test-support.mjs';
 
 test('one provider call repairs exactly the selected scenes and plans while retaining metadata', async (t) => {
   const fixture = await providerFixture(t, completePatches);
   const { state, run } = await runRepair(fixture);
-  assert.equal(fixture.requests.length, 1);
+  assert.equal(fixture.requests.length, 2);
   assert.equal(fixture.requests[0].max_completion_tokens, 2048);
+  assert.equal(fixture.requests[0].stream, true);
+  assert.equal(fixture.requests[0].response_format.type, 'json_schema');
+  assert.equal(fixture.requests[0].response_format.json_schema.strict, true);
+  const outputSchema = fixture.requests[0].response_format.json_schema.schema;
+  assert.equal(outputSchema.additionalProperties, false);
+  assert.deepEqual(outputSchema.required, ['scenes', 'plans']);
+  assert.deepEqual(outputSchema.properties.scenes.items.properties.id.enum, fixture.input.sceneIds);
+  assert.deepEqual(outputSchema.properties.plans.items.properties.id.enum, fixture.input.planIds);
+  assert.equal('prefixItems' in outputSchema.properties.scenes, false);
+  assert.equal(outputSchema.properties.scenes.items.additionalProperties, false);
+  assert.deepEqual(fixture.requests[0].tools.map((tool) => tool.function.name), TOOL_IDS);
+  assert.equal(fixture.requests[0].tools.every((tool) => /^[a-zA-Z0-9_-]{1,64}$/.test(tool.function.name)), true);
   assert.equal(run.actualOutputTokens, 40);
   const proposal = state.changeSets.find((item) => item.id === run.resultRef);
   assert.equal(proposal.entries.filter((entry) => entry.kind === 'scene').length, 2);
@@ -65,6 +27,73 @@ test('one provider call repairs exactly the selected scenes and plans while reta
   assert.deepEqual(scene.after.protectedQuotes, fixture.state.scenes.find((item) => item.id === 'scene-7').protectedQuotes);
   assert.equal(scene.after.chapter, 7);
   assert.equal(state.head, fixture.state.head);
+});
+
+test('a provider invocation is rejected before transport when the full encoded output ceiling no longer fits', async (t) => {
+  const fixture = await providerFixture(t, completePatches, {
+    firstCompletionTokens: 1800,
+    budget: { maxModelCalls: 2, maxOutputTokens: 2048, maxOutputTokensPerInvocation: 2048 },
+  });
+  const { run } = await runRepair(fixture);
+
+  assert.equal(fixture.requests.length, 1);
+  assert.equal(fixture.requests[0].max_completion_tokens, 2048);
+  assert.equal(run.state, 'failed');
+  assert.equal(run.error.code, 'part.BUDGET_EXCEEDED');
+  assert.equal(run.actualOutputTokens, 1800);
+  assert.equal(run.reservedOutputTokens, 0);
+});
+
+test('provider usage beyond the durable known-token ceiling is recorded before the run fails', async (t) => {
+  const fixture = await providerFixture(t, completePatches, {
+    finalPromptTokens: 100,
+    finalCompletionTokens: 40,
+    budget: { maxModelCalls: 2, maxKnownTokens: 140, maxOutputTokens: 100, maxOutputTokensPerInvocation: 100 },
+  });
+  const { state, run } = await runRepair(fixture);
+
+  assert.equal(fixture.requests.length, 2);
+  assert.equal(run.state, 'failed');
+  assert.equal(run.error.code, 'BUDGET_EXCEEDED');
+  assert.equal(run.actualKnownTokens, 150);
+  assert.equal(run.actualOutputTokens, 40);
+  assert.equal(state.changeSets.some((item) => item.runId === run.id), false);
+});
+
+test('an empty selected collection does not emit an invalid empty enum', async (t) => {
+  const fixture = await providerFixture(t, completePatches, { planIds: [] });
+  const { run } = await runRepair(fixture);
+  const plans = fixture.requests[0].response_format.json_schema.schema.properties.plans;
+
+  assert.equal(plans.maxItems, 0);
+  assert.equal('enum' in plans.items.properties.id, false);
+  assert.equal(run.state, 'awaiting_decision');
+});
+
+test('a tool response without usage consumes its reserved output ceiling before another model call', async (t) => {
+  const fixture = await providerFixture(t, completePatches, {
+    omitToolUsage: true,
+    budget: { maxModelCalls: 2, maxKnownTokens: 100, maxOutputTokens: 100, maxOutputTokensPerInvocation: 100 },
+  });
+  const { run } = await runRepair(fixture);
+
+  assert.equal(fixture.requests.length, 1);
+  assert.equal(run.state, 'failed');
+  assert.equal(run.error.code, 'part.BUDGET_EXCEEDED');
+  assert.equal(run.actualOutputTokens, 100);
+  assert.equal(run.actualKnownTokens, 100);
+});
+
+test('the basic driver honors the public model-call limit above its former default', async (t) => {
+  const fixture = await providerFixture(t, completePatches, {
+    toolTurns: 8,
+    budget: { maxModelCalls: 9, maxToolDispatches: 12, maxKnownTokens: 10_000,
+      maxOutputTokens: 900, maxOutputTokensPerInvocation: 100 },
+  });
+  const { run } = await runRepair(fixture);
+
+  assert.equal(fixture.requests.length, 9);
+  assert.equal(run.state, 'awaiting_decision');
 });
 
 test('provider omissions are rejected and reported usage is retained', async (t) => {
@@ -131,4 +160,30 @@ test('protected-quote violations remain inspectable invalid proposals, never can
   const proposal = state.changeSets.find((item) => item.id === run.resultRef);
   assert.ok(proposal.issues.some((issue) => issue.code === 'PROTECTED_QUOTE'));
   assert.equal(state.head, fixture.state.head);
+});
+
+test('cancelling an active part request aborts the provider and never finalizes its output', async (t) => {
+  const started = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  t.after(() => release.resolve());
+  const fixture = await providerFixture(t, async (input) => {
+    started.resolve();
+    await release.promise;
+    return completePatches(input);
+  });
+  const queued = await command(fixture.app, '/api/repair-runs', fixture.input,
+    { branchId: fixture.state.currentBranchId });
+  const run = await queued.json();
+  const ticking = fixture.worker.tick();
+  await started.promise;
+
+  const cancelled = await command(fixture.app, `/api/runs/${run.id}/cancel`, {},
+    { branchId: fixture.state.currentBranchId });
+  release.resolve();
+  await ticking;
+  const state = await fixture.store.read();
+
+  assert.equal(cancelled.status, 200);
+  assert.equal(state.runs.find((item) => item.id === run.id).state, 'cancelled');
+  assert.equal(state.changeSets.some((item) => item.runId === run.id), false);
 });
