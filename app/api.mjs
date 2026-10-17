@@ -22,6 +22,7 @@ import { mountRepairRoutes } from "./repair-routes.mjs";
 import { mountMergeRoutes } from "./merge-routes.mjs";
 import { mountEvaluationReportRoutes } from "./evaluation-report-routes.mjs";
 import { assertReadScope, branchHeader } from "./branch-scope.mjs";
+import { runtimeInfo } from "../packages/execution/public-contract.mjs";
 
 const id = z.string().min(1).max(200);
 const text = z.string().min(1).max(200_000);
@@ -93,6 +94,7 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
   });
 
   app.get("/health", (context) => context.json({ ok: true, persistence: store.constructor.name === "PostgresStore" ? "postgresql" : "local-file-single-user" }));
+  app.get("/api/runtime-info", (context) => context.json(runtimeInfo()));
   app.get("/api/state", async (context) => context.json(publicState(await store.read())));
   app.get("/api/scenes", async (context) => context.json((await readScoped(context)).scenes));
   app.get("/api/plans", async (context) => context.json((await readScoped(context)).plans));

@@ -5,15 +5,14 @@ import { enqueueRun, controlRun, RunError } from './queue.mjs';
 import { assertReadScope, branchHeader } from '../../app/branch-scope.mjs';
 import { assertRecordBranch } from '../../app/branch-state.mjs';
 import { DomainError } from '../../app/errors.mjs';
+import { executionBudgetSchema } from './contracts.ts';
+import { safeRunDetail, safeRunEvent, safeRunSummary } from './public-contract.mjs';
 
 const runSchema = z.strictObject({
   sceneId: z.string().min(1), instruction: z.string().min(1).max(10_000),
   baseSnapshotId: z.string().min(1),
   feedbackId: z.string().min(1).optional(),
-  budget: z.strictObject({
-    maxModelCalls: z.number().int().min(1).max(12).default(12),
-    maxOutputTokens: z.number().int().min(1).max(30_000).default(30_000),
-  }).default({ maxModelCalls: 12, maxOutputTokens: 30_000 }),
+  budget: executionBudgetSchema,
 });
 
 const guarded = (handler) => async (context) => {
@@ -36,12 +35,13 @@ export function mountRunRoutes(app, { store, worker }) {
   app.post('/api/runs', guarded(async (context) => {
     const input = runSchema.parse(await context.req.json());
     const run = await enqueueRun(store, { ...input, ...requestIdentity(context, input) });
-    return context.json(run, 202);
+    return context.json(safeRunSummary(run), 202);
   }));
   app.get('/api/runs', guarded(async (context) => {
     const state = await store.read();
     assertReadScope(state, context.req.header(branchHeader));
-    return context.json(state.runs.filter((run) => run.queueManaged));
+    const limit = z.coerce.number().int().min(1).max(200).default(50).parse(context.req.query('limit'));
+    return context.json(state.runs.filter((run) => run.queueManaged).toReversed().slice(0, limit).map(safeRunSummary));
   }));
   app.get('/api/runs/:id', guarded(async (context) => {
     const state = await store.read();
@@ -49,7 +49,7 @@ export function mountRunRoutes(app, { store, worker }) {
     const run = state.runs.find((item) => item.id === context.req.param('id') && item.queueManaged);
     if (!run) throw new RunError('NOT_FOUND', '작업을 찾을 수 없습니다.', 404);
     assertRecordBranch(state, run);
-    return context.json({ ...run, jobs: (state.jobs ?? []).filter((job) => job.runId === run.id) });
+    return context.json(safeRunDetail(run, (state.jobs ?? []).filter((job) => job.runId === run.id)));
   }));
   app.post('/api/runs/:id/:action', guarded(async (context) => {
     const action = z.enum(['pause', 'resume', 'cancel']).parse(context.req.param('action'));
@@ -57,7 +57,7 @@ export function mountRunRoutes(app, { store, worker }) {
     const input = { id: context.req.param('id'), action };
     const run = await controlRun(store, { ...input, ...requestIdentity(context, input) });
     if (action === 'cancel') worker.cancel(run.id);
-    return context.json(run);
+    return context.json(safeRunSummary(run));
   }));
   app.get('/api/runs/:id/events', guarded(async (context) => {
     const state = await store.read();
@@ -74,7 +74,8 @@ export function mountRunRoutes(app, { store, worker }) {
         if (latest.project.id !== state.project.id || latest.currentBranchId !== state.currentBranchId) break;
         const runEvents = (latest.runEvents ?? []).filter((event) => event.runId === id);
         for (const event of runEvents.slice(cursor + 1)) {
-          await stream.writeSSE({ id: event.id, event: event.type, data: JSON.stringify(event) });
+          const projected = safeRunEvent(event);
+          if (projected) await stream.writeSSE({ id: projected.id, event: projected.type, data: JSON.stringify(projected) });
           cursor++;
         }
         const run = latest.runs.find((item) => item.id === id);

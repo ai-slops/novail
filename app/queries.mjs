@@ -17,7 +17,7 @@ export const publicState = (state) => ({
   changeSets: projectChangeSets(state),
   snapshots: visibleSnapshots(state).map((snapshot) => ({ ...snapshot, canBranch: snapshot.id === state.head || Boolean(snapshot.narrativeContext) })),
   plans: state.plans,
-  runs: state.runs,
+  runs: state.runs.map(safeRunSummary),
   settings: { ...state.settings, providerConfigured: Boolean(process.env.OPENAI_API_KEY),
     mode: process.env.OPENAI_API_KEY ? 'openai-compatible' : 'local-demo' },
   drafts: state.drafts,
@@ -33,3 +33,4 @@ export const exportMarkdown = (state) => [
 import { projectChangeSets } from '../packages/revision/changesets.mjs';
 import { workspaceHash } from '../packages/revision/workspace.mjs';
 import { branchSummary, visibleSnapshots } from './branch-state.mjs';
+import { safeRunSummary } from '../packages/execution/public-contract.mjs';
