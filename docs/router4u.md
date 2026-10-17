@@ -59,11 +59,12 @@ pnpm install
 ```dotenv
 OPENAI_BASE_URL=http://127.0.0.1:9470/v1
 OPENAI_API_KEY=<Router4U project key>
-OPENAI_MODEL=<exact model ID returned by Router4U discovery>
+# Optional default; select the model in NOVAIL's web UI.
+OPENAI_MODEL=
 PORT=3000
 ```
 
-- `OPENAI_MODEL`은 Router4U가 조회한 정확한 ID를 사용합니다. 임의의 GPT 기본값을 추측하지 않습니다.
+- 웹 UI에서 조회된 모델을 선택하면 `OPENAI_MODEL`을 설정하지 않아도 됩니다. 기본값 또는 CLI 생성 검사에 사용할 때만 조회된 정확한 ID를 넣으세요. 임의의 GPT 기본값을 추측하지 않습니다.
 - DIM처럼 Router4U가 다른 주소에 있다면 `OPENAI_BASE_URL`에 NOVAIL 서버에서 도달 가능한 게이트웨이 주소와 `/v1`을 씁니다. 브라우저용 제어실 URL과 서버가 도달할 주소가 다를 수 있습니다.
 - `.env`와 다른 `.env.*` 파일은 gitignore 대상입니다. 프로젝트 키를 셸 기록, 채팅, 브라우저 클라이언트 코드 또는 커밋에 노출하지 않습니다.
 - 별도 Router4U 전용 NOVAIL 상태나 시작 경로는 없습니다. 실제 원고와 분리해 확인하려면 `NOVAIL_DATA_FILE`을 소유자가 만든 임시 경로로 명시하세요. 생성 probe 자체는 항상 임시 저장소를 사용합니다.
@@ -84,7 +85,7 @@ pnpm provider:check
 
 이 명령은 인증된 표준 `GET /v1/models`만 호출합니다. 키가 승인되는지와 선택 모델이 목록에 있는지를 확인하지만 추론하지 않으며 Chat Completions, 스트리밍, 도구, strict JSON Schema, 실제 entitlement 또는 응답 품질을 증명하지 않습니다. 게이트웨이가 모델 목록 API에 404/405를 반환하면 catalog를 `UNAVAILABLE`로 표시할 뿐 비호환이라고 단정하지 않습니다.
 
-실제 공급자 호출과 quota 사용에 명시적으로 동의할 때만 생성 probe를 실행합니다.
+CLI 생성 검사는 `OPENAI_MODEL`에 정확한 모델 ID를 설정해야 합니다. 실제 공급자 호출과 quota 사용에 명시적으로 동의할 때만 생성 probe를 실행합니다.
 
 ```sh
 pnpm provider:check --generate
@@ -94,7 +95,7 @@ pnpm provider:check --generate
 
 ## 5. NOVAIL 시작과 노출
 
-NOVAIL은 Router4U 전용 wrapper 없이 일반 시작 명령으로 `.env`를 읽습니다. 키가 비어 있으면 명시적인 로컬 예제 모드로 시작합니다. 키가 있으면 base URL과 model을 검증하며, 잘못된 URL이나 명시적으로 빈 모델은 서버가 포트를 열기 전에 실패합니다.
+NOVAIL은 Router4U 전용 wrapper 없이 일반 시작 명령으로 `.env`를 읽습니다. 키가 비어 있으면 명시적인 로컬 예제 모드로 시작합니다. 키가 있으면 base URL을 검증하며, 기본 모델이 비어 있어도 시작한 뒤 웹 UI에서 실행 모델을 고를 수 있습니다.
 
 ```sh
 pnpm start

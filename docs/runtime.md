@@ -33,7 +33,7 @@ Part API는 실험적이므로 두 의존성은 정확히 `0.1.0`으로 고정�
 
 ## 모델과 출력 계약
 
-`OPENAI_API_KEY`가 있으면 `OPENAI_BASE_URL` 아래 `/chat/completions`와 `OPENAI_MODEL`을 사용합니다. 제공자는 한 실행 안에서 다음 기능을 함께 지원해야 합니다.
+`OPENAI_API_KEY`가 있으면 `OPENAI_BASE_URL` 아래 `/chat/completions`를 사용합니다. 모델은 실행 요청의 `model`을 우선하며 없으면 선택적인 `OPENAI_MODEL` 기본값을 사용합니다. 선택은 대기열 등록 시 고정되고 두 값 모두 없으면 `MODEL_REQUIRED`로 거절합니다. 제공자는 한 실행 안에서 다음 기능을 함께 지원해야 합니다.
 
 - SSE streaming Chat Completions
 - function tool 호출과 이어지는 모델 turn
@@ -44,7 +44,7 @@ OpenAI 호환 변형 중 일부는 이 조합이나 usage 보고를 지원하지
 
 키가 없으면 Part `fakeModel`을 사용하는 결정적 `local-demo`가 실행됩니다. UI와 `/api/runtime-info`는 이를 **AI가 아닌 로컬 예제**로 표시합니다. 이 모드는 실제 모델 품질 검증이 아닙니다.
 
-서버와 `provider:check`는 같은 `.env`와 기본값(`https://api.openai.com/v1`, `gpt-4.1-mini`)을 사용합니다. 키가 설정된 상태의 잘못된 base URL이나 명시적으로 빈 model은 시작 전에 거절합니다. `pnpm provider:check`는 표준 `GET /models`의 인증·catalog 접근만 확인하고 생성 기능을 추정하지 않습니다. 실제 SSE, 도구 loop와 strict JSON 결과 경로는 quota 사용에 동의한 `pnpm provider:check --generate`에서만 확인합니다.
+서버와 `provider:check`는 같은 `.env`를 사용하며 base URL의 기본값은 `https://api.openai.com/v1`입니다. 기본 모델이 비어 있어도 서버는 시작할 수 있지만 키가 설정된 상태의 잘못된 base URL은 거절합니다. `pnpm provider:check`는 기본 모델 없이도 표준 `GET /models`의 인증·catalog 접근을 확인하며 생성 기능을 추정하지 않습니다. CLI에서 실제 생성하려면 `OPENAI_MODEL`을 정한 뒤 quota 사용에 동의하는 `pnpm provider:check --generate`를 실행합니다.
 
 ## 예산과 사용량
 
@@ -68,6 +68,7 @@ Job lease는 주기적으로 갱신되고 lease token으로 늦은 결과를 차
 ## 공개 API와 이벤트
 
 - `GET /api/runtime-info`: Part `0.1.0`, 현재 서버 mode와 model label, 공개 예산 기본값·범위, 허용 도구 ID
+- `GET /api/provider/models`: 서버 키로 조회한 모델 ID 목록과 선택적인 기본 모델. 키 거절·미지원 목록·조회 실패를 구분하고 키나 원시 제공자 오류 본문은 반환하지 않습니다.
 - `POST /api/repair-runs`: 범위가 지정된 Part 수리 Run 생성
 - `GET /api/runs?limit=...`: 현재 분기의 최근 queue-managed Run
 - `GET /api/runs/:id`: 안전한 Run 요약과 Job 요약
@@ -80,6 +81,6 @@ SSE는 저장된 이벤트를 먼저 replay한 뒤 live 이벤트를 보내고 t
 
 ## 웹 UI와 제외 범위
 
-**에이전트 실행** 탭은 runtime mode, 세 도구, 범위·예산 composer, 최근 50개 Run, 사용량, SSE 이벤트, 취소, 결과 검토 연결을 제공합니다. provider key, model, base URL을 저장하거나 연결 시험을 실행하는 설정 UI는 아직 없습니다. 키는 서버 환경 변수에만 둡니다.
+**에이전트 실행** 탭은 runtime mode, 모델 선택, 세 도구, 범위·예산 composer, 최근 50개 Run, 사용량, SSE 이벤트, 취소, 결과 검토 연결을 제공합니다. AI 수정 제안에서도 같은 모델 선택을 사용합니다. 키와 base URL을 저장하거나 연결 시험을 실행하는 설정 UI는 아직 없으며 키는 서버 환경 변수에만 둡니다.
 
 이 통합에는 별도 process bridge, 브라우저에서 실행되는 Part 런타임, 셸·네트워크·쓰기·승인 도구, 자동 semantic Extractor/Evaluator가 포함되지 않습니다. 다음 실제 제공자 설정·연결 시험과 품질 검증 범위는 [`roadmap.md`](roadmap.md)에 있습니다.
