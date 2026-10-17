@@ -1,0 +1,87 @@
+.runtime-view { scroll-behavior: smooth; }
+.runtime-view .view-description { max-width: 58ch; margin: var(--space-2) 0 0; color: var(--ink-soft); line-height: 1.6; }
+.runtime-identity, .runtime-composer, .runtime-history, .runtime-detail { max-width: var(--measure-ledger); margin-inline: auto; background: var(--paper); border: 1px solid var(--rule); }
+.runtime-identity { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-8); padding: var(--space-5); margin-block-end: var(--space-4); border-inline-start: var(--space-1) solid var(--teal); }
+.runtime-identity h3, .runtime-composer h3, .runtime-history h3, .runtime-detail h3 { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-1) 0; font-family: "Nanum Myeongjo", Batang, serif; font-size: var(--type-h2); }
+.runtime-identity p { margin: var(--space-2) 0 0; color: var(--ink-soft); font-size: var(--type-caption); line-height: 1.5; }
+.runtime-identity dl { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.runtime-identity dl > div { min-width: 0; padding: var(--space-3); background: var(--paper-inset); }
+.runtime-identity dt { display: flex; align-items: center; gap: var(--space-1); color: var(--ink-faint); font-size: var(--type-caption); font-weight: 700; }
+.runtime-identity dd { margin: var(--space-2) 0 0; font-size: var(--type-small); font-weight: 700; overflow-wrap: anywhere; }
+.runtime-identity summary { color: var(--teal); cursor: pointer; }
+.runtime-identity details code { display: block; margin-block-start: var(--space-2); color: var(--ink-soft); font-size: var(--type-caption); overflow-wrap: anywhere; }
+.runtime-composer { margin-block-end: var(--space-6); }
+.runtime-composer > header, .runtime-history > header, .runtime-detail > header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--rule); }
+.runtime-composer > header > svg { color: var(--teal); }
+.runtime-composer form { display: grid; gap: var(--space-5); padding: var(--space-5); }
+.runtime-scope-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.runtime-scope-grid fieldset, .budget-fieldset { min-width: 0; margin: 0; padding: var(--space-3); border: 1px solid var(--rule); }
+.runtime-scope-grid legend, .budget-fieldset legend { padding-inline: var(--space-2); color: var(--ink-soft); font-size: var(--type-caption); font-weight: 700; }
+.runtime-scope-grid fieldset { max-height: var(--measure-preview); overflow-y: auto; }
+.runtime-scope-grid label { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2); font-size: var(--type-small); line-height: 1.5; }
+.runtime-scope-grid input { margin-block-start: var(--space-1); accent-color: var(--teal); }
+.budget-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.budget-grid label { display: grid; gap: var(--space-2); color: var(--ink-soft); font-size: var(--type-caption); font-weight: 700; }
+.budget-grid label span { display: flex; justify-content: space-between; gap: var(--space-2); }
+.budget-grid small { color: var(--ink-faint); font-weight: 500; }
+.budget-grid input { min-width: 0; min-height: 44px; padding: var(--space-2); border: 1px solid var(--rule-strong); border-radius: var(--radius-md); background: var(--paper); color: var(--ink); font-variant-numeric: tabular-nums; }
+.budget-fieldset > p, .runtime-composer footer > p { margin: var(--space-3) 0 0; color: var(--ink-faint); font-size: var(--type-caption); line-height: 1.5; }
+.runtime-composer footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.runtime-composer footer > p { margin: 0; max-width: 58ch; }
+.runtime-ledger-layout { max-width: var(--measure-ledger); margin-inline: auto; display: grid; grid-template-columns: var(--measure-runtime-history) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.runtime-history, .runtime-detail { min-width: 0; margin: 0; }
+.runtime-history > header span { min-width: var(--space-8); min-height: var(--space-8); display: grid; place-items: center; border-radius: 50%; background: var(--teal-wash); color: var(--teal); font-size: var(--type-caption); font-weight: 700; }
+.runtime-history nav { display: grid; max-height: calc(100dvh - 240px); overflow-y: auto; }
+.runtime-history nav button { display: grid; gap: var(--space-1); min-height: 44px; padding: var(--space-3) var(--space-4); border: 0; border-bottom: 1px solid var(--rule); background: transparent; color: var(--ink); text-align: start; cursor: pointer; }
+.runtime-history nav button:hover { background: var(--paper-inset); }
+.runtime-history nav button.active { background: var(--teal-wash); box-shadow: inset var(--space-1) 0 0 var(--teal); }
+.runtime-history nav strong, .runtime-history nav small { overflow-wrap: anywhere; }
+.runtime-history nav strong { font-size: var(--type-caption); }
+.runtime-history nav small { color: var(--ink-faint); font-size: var(--type-caption); }
+.runtime-state { color: var(--ink-soft); font-size: var(--type-caption); font-weight: 700; }
+.runtime-state.running, .runtime-state.awaiting_decision { color: var(--teal); }
+.runtime-state.failed, .runtime-state.cancelled { color: var(--danger); }
+.runtime-connection { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-faint); font-size: var(--type-caption); font-weight: 700; }
+.runtime-connection.live { color: var(--teal); }
+.runtime-detail > header code { color: var(--ink-faint); font-size: var(--type-caption); overflow-wrap: anywhere; }
+.runtime-provenance { display: block; margin-block-start: var(--space-2); color: var(--ink-soft); font-size: var(--type-caption); overflow-wrap: anywhere; }
+.runtime-usage { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
+.runtime-usage span { display: grid; gap: var(--space-1); padding: var(--space-3); border-inline-end: 1px solid var(--rule); }
+.runtime-usage span:last-child { border-inline-end: 0; }
+.runtime-usage small { color: var(--ink-faint); font-size: var(--type-caption); }
+.runtime-usage strong { font-size: var(--type-h2); font-variant-numeric: tabular-nums; }
+.runtime-events { list-style: none; margin: 0; padding: var(--space-4) var(--space-5); }
+.runtime-events li { display: grid; grid-template-columns: var(--space-8) minmax(0, 1fr) auto; gap: var(--space-3); position: relative; padding-block-end: var(--space-5); }
+.runtime-events li::before { content: ""; position: absolute; inset-block: var(--space-8) 0; inset-inline-start: calc(var(--space-4) - 1px); border-inline-start: 1px solid var(--rule-strong); }
+.runtime-events li:last-child { padding-block-end: 0; }
+.runtime-events li:last-child::before { display: none; }
+.runtime-event-marker { z-index: 1; width: var(--space-8); height: var(--space-8); display: grid; place-items: center; border-radius: 50%; background: var(--teal-wash); color: var(--teal); }
+.runtime-events strong { font-size: var(--type-small); }
+.runtime-events p, .runtime-events pre { margin: var(--space-1) 0 0; color: var(--ink-soft); font-size: var(--type-small); line-height: 1.6; }
+.runtime-events pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: "Nanum Myeongjo", Batang, serif; }
+.runtime-events code { display: block; margin-block-start: var(--space-1); color: var(--ink-soft); font-size: var(--type-caption); overflow-wrap: anywhere; }
+.runtime-events time { color: var(--ink-faint); font-size: var(--type-caption); font-variant-numeric: tabular-nums; }
+.runtime-event-empty, .runtime-detail-empty { display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-8); text-align: center; color: var(--ink-soft); }
+.runtime-event-empty p, .runtime-detail-empty p { margin: 0; font-size: var(--type-small); }
+.runtime-detail > footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-top: 1px solid var(--rule); color: var(--ink-faint); font-size: var(--type-caption); }
+.runtime-detail > footer > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.runtime-error { display: flex; gap: var(--space-2); margin: var(--space-4); padding: var(--space-3); background: var(--amber-wash); color: var(--danger); }
+.runtime-error span { display: grid; gap: var(--space-1); font-size: var(--type-small); }
+.runtime-load-error { max-width: var(--measure-ledger); margin: 0 auto var(--space-4); padding: var(--space-4); border: 1px solid var(--danger); background: var(--paper); }
+.runtime-load-error p { margin: 0 0 var(--space-3); color: var(--danger); }
+
+@media (max-width: 900px) {
+  .runtime-identity, .runtime-ledger-layout { grid-template-columns: minmax(0, 1fr); }
+  .runtime-history nav { max-height: var(--measure-preview); }
+}
+
+@media (max-width: 620px) {
+  .runtime-identity { gap: var(--space-4); }
+  .runtime-identity dl, .runtime-scope-grid, .budget-grid, .runtime-usage { grid-template-columns: minmax(0, 1fr); }
+  .runtime-composer form, .runtime-events { padding: var(--space-4); }
+  .runtime-composer footer, .runtime-detail > footer { align-items: stretch; flex-direction: column; }
+  .runtime-composer footer .button, .runtime-detail > footer .button { width: 100%; }
+  .runtime-usage span { border-inline-end: 0; border-bottom: 1px solid var(--rule); }
+  .runtime-events li { grid-template-columns: var(--space-8) minmax(0, 1fr); }
+  .runtime-events time { grid-column: 2; }
+}

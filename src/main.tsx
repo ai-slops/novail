@@ -13,6 +13,7 @@ import "./styles/components.css"
 import "./styles/versions.css"
 import "./styles/revision.css"
 import "./styles/evaluation.css"
+import "./styles/runtime.css"
 import "./styles/responsive.css"
 
 const root = document.getElementById("root")
