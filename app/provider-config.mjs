@@ -1,5 +1,4 @@
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
-const DEFAULT_MODEL = 'gpt-4.1-mini';
 
 export class ProviderConfigError extends Error {
   constructor(code, message) {
@@ -19,17 +18,17 @@ export function providerConfig(environment = process.env, options = {}) {
     mode: 'local-demo',
     apiKey: '',
     baseUrl: DEFAULT_BASE_URL,
-    model: DEFAULT_MODEL,
+    model: null,
     timeoutMs: 10_000,
   });
 
   const configuredBaseUrl = environment.OPENAI_BASE_URL;
   const rawBaseUrl = configuredBaseUrl === undefined ? DEFAULT_BASE_URL : configuredBaseUrl.trim();
   const configuredModel = environment.OPENAI_MODEL;
-  const model = configuredModel === undefined ? DEFAULT_MODEL : configuredModel.trim();
-  if (!rawBaseUrl || !model || /[\u0000-\u001f\u007f]/u.test(model)) {
+  const model = configuredModel?.trim() || null;
+  if (!rawBaseUrl || (model !== null && (model.length > 200 || /[\u0000-\u001f\u007f]/u.test(model)))) {
     throw new ProviderConfigError('CONFIGURATION_INVALID',
-      'Configured OPENAI_BASE_URL and OPENAI_MODEL must be non-empty valid values.');
+      'Configured OPENAI_BASE_URL must be non-empty and OPENAI_MODEL must not contain control characters.');
   }
 
   let base;
@@ -47,7 +46,7 @@ export function providerConfig(environment = process.env, options = {}) {
     mode: 'openai-compatible',
     apiKey,
     baseUrl: base.toString().replace(/\/$/u, ''),
-    model: model || DEFAULT_MODEL,
+    model,
     timeoutMs: 10_000,
   });
 }
