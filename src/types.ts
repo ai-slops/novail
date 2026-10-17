@@ -113,7 +113,7 @@ export type WorkspaceState = Readonly<{
   changeSets: readonly ChangeSet[]
 }>
 
-export const workspaceTabs = ["원고", "기획 보드", "타임라인", "개정 검토", "버전 기록"] as const
+export const workspaceTabs = ["원고", "기획 보드", "타임라인", "개정 검토", "에이전트 실행", "버전 기록"] as const
 export type WorkspaceTab = (typeof workspaceTabs)[number]
 export type ModalKind = "project" | "scene" | "plan" | null
 export type Notice = Readonly<{ tone: "success" | "error"; text: string }>

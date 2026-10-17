@@ -1,4 +1,4 @@
-import { BookOpenText, Columns3, History, ListTree, RefreshCw, ScanSearch } from "lucide-react"
+import { BookOpenText, Bot, Columns3, History, ListTree, RefreshCw, ScanSearch } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { ApiError, createBranch, createChangeSet, getRevisionContext, getState, mutate, mutateJson, switchBranch } from "./api"
 import { createdIdSchema, createdProjectSchema, workspaceSchema } from "./schema"
@@ -12,7 +12,7 @@ import { RevisionComposer } from "./components/RevisionComposer"
 import type { EditionSummary, ModalKind, Notice, Snapshot, WorkspaceState, WorkspaceTab } from "./types"
 import { workspaceTabs } from "./types"
 
-const tabIcons = [BookOpenText, Columns3, ListTree, ScanSearch, History] as const
+const tabIcons = [BookOpenText, Columns3, ListTree, ScanSearch, Bot, History] as const
 
 export function App() {
   const [state, setState] = useState<WorkspaceState | null>(null)
@@ -27,6 +27,7 @@ export function App() {
   const [dirty, setDirty] = useState(false)
   const [feedbackDirty, setFeedbackDirty] = useState(false)
   const [repairRequest, setRepairRequest] = useState<Readonly<{ branchId: string; sceneId: string; feedbackId: string; instruction: string }> | null>(null)
+  const [reviewTargetId, setReviewTargetId] = useState<string | undefined>(undefined)
   const [editorEpoch, setEditorEpoch] = useState(0)
   const previousFocus = useRef<HTMLElement | null>(null)
   const stateRef = useRef<WorkspaceState | null>(null)
@@ -124,6 +125,14 @@ export function App() {
   const sceneFeedback = state.feedback.filter((item) => item.sceneId === scene?.id)
   const sceneCandidates = state.candidates.filter((item) => item.sceneId === scene?.id)
   const openRevisionReview = () => { if (canLeave()) { setDirty(false); setTab("개정 검토"); closeDrawers() } }
+  const openRuntimeResult = async (resultRef: string) => {
+    if (!canLeave()) return
+    try {
+      await refreshRevision(state.currentBranchId)
+      if (!stateRef.current?.changeSets.some((changeSet) => changeSet.id === resultRef)) throw new ApiError("RESULT_NOT_FOUND", "실행 결과를 현재 분기의 V2 검토 목록에서 찾을 수 없습니다.")
+      setDirty(false); setReviewTargetId(resultRef); setTab("개정 검토"); closeDrawers()
+    } catch (error: unknown) { showError(error) }
+  }
   const submitFeedback = async (text: string, scope: string): Promise<boolean> => {
     if (!scene) return false
     const branchId = state.currentBranchId
@@ -227,7 +236,7 @@ export function App() {
           onRepair={(feedback) => setRepairRequest({ branchId: state.currentBranchId, sceneId: feedback.sceneId, feedbackId: feedback.id, instruction: feedback.text })}
           onReject={(candidate) => run(() => mutate(`api/candidates/${candidate.id}/reject`, {}, state.currentBranchId), "이전 형식 편집안을 거절했습니다.", state.currentBranchId).then(() => undefined)}
           onResolve={(feedback, decision, note) => run(() => mutate(`api/feedback/${feedback.id}/resolve`, { expectedHead: state.head, decision, note }, state.currentBranchId), "피드백 상태를 기록했습니다.", state.currentBranchId).then(() => undefined)} />
-      </> : <WorkspaceViews key={`${state.currentBranchId}:${scene?.id ?? "none"}`} tab={tab} scenes={state.scenes} plans={state.plans} runs={state.runs} candidates={state.candidates} changeSets={state.changeSets} workspaceHash={state.workspaceHash} snapshots={state.snapshots} editions={state.editions} head={state.head} busy={busy} branches={state.branches} currentBranchId={state.currentBranchId} onSwitchBranch={switchWorkingBranch} onCreateBranch={createWorkingBranch} onRefresh={reloadWorkspace} onRevisionRefresh={() => refreshRevision(state.currentBranchId)} onDirtyChange={setDirty} onBeforeDiscard={canLeave} onPlan={() => setModal("plan")} onNewScene={() => setModal("scene")} onRestore={(snapshot: Snapshot) => run(() => mutate("api/restore", { snapshotId: snapshot.id, expectedHead: state.head }, state.currentBranchId), "선택한 버전을 새 기준본으로 복원했습니다.", state.currentBranchId).then(() => undefined)} onPublished={editionPublished} onScene={selectScene} />}
+      </> : <WorkspaceViews key={`${state.currentBranchId}:${scene?.id ?? "none"}`} tab={tab} scenes={state.scenes} plans={state.plans} runs={state.runs} candidates={state.candidates} changeSets={state.changeSets} workspaceHash={state.workspaceHash} snapshots={state.snapshots} editions={state.editions} head={state.head} busy={busy} branches={state.branches} currentBranchId={state.currentBranchId} selectedChangeSetId={reviewTargetId} onOpenRuntimeResult={openRuntimeResult} onSwitchBranch={switchWorkingBranch} onCreateBranch={createWorkingBranch} onRefresh={reloadWorkspace} onRevisionRefresh={() => refreshRevision(state.currentBranchId)} onDirtyChange={setDirty} onBeforeDiscard={canLeave} onPlan={() => setModal("plan")} onNewScene={() => setModal("scene")} onRestore={(snapshot: Snapshot) => run(() => mutate("api/restore", { snapshotId: snapshot.id, expectedHead: state.head }, state.currentBranchId), "선택한 버전을 새 기준본으로 복원했습니다.", state.currentBranchId).then(() => undefined)} onPublished={editionPublished} onScene={selectScene} />}
     </div>
     {notice ? <div className={`toast ${notice.tone}`} role="status"><span>{notice.text}</span><button type="button" onClick={() => setNotice(null)} aria-label="알림 닫기">×</button></div> : null}
     {modal ? <EntityDialog kind={modal} busy={busy} onClose={() => setModal(null)} onSubmit={dialogSubmit} /> : null}

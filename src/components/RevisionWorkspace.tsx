@@ -1,19 +1,20 @@
 import { AlertTriangle, Bot, Check, ChevronRight, FilePenLine, GitPullRequest, ShieldCheck, X } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Candidate } from "../types"
 import type { ChangeEntry, ChangeSet } from "../../packages/revision/contracts"
 import { deriveChangeSet, mutate, promoteCandidate } from "../api"
 import { RevisionComposer } from "./RevisionComposer"
 import { EvaluationWorkspace } from "./EvaluationWorkspace"
 
-type Props = Readonly<{ changeSets: readonly ChangeSet[]; candidates: readonly Candidate[]; branchId: string; head: string; busy: boolean; onRefresh: () => Promise<void>; onDirtyChange: (dirty: boolean) => void; onBeforeDiscard: () => boolean; onScene: (id: string) => void }>
+type Props = Readonly<{ changeSets: readonly ChangeSet[]; candidates: readonly Candidate[]; branchId: string; head: string; selectedChangeSetId: string | undefined; busy: boolean; onRefresh: () => Promise<void>; onDirtyChange: (dirty: boolean) => void; onBeforeDiscard: () => boolean; onScene: (id: string) => void }>
 
 export function RevisionWorkspace(props: Props) {
-  const [selectedId, setSelectedId] = useState(props.changeSets.at(-1)?.id ?? "")
+  const [selectedId, setSelectedId] = useState(props.selectedChangeSetId ?? props.changeSets.at(-1)?.id ?? "")
   const [composer, setComposer] = useState<"manual" | "repair" | null>(null)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selected = props.changeSets.find((item) => item.id === selectedId) ?? props.changeSets.at(-1)
+  useEffect(() => { if (props.selectedChangeSetId && props.changeSets.some((item) => item.id === props.selectedChangeSetId)) setSelectedId(props.selectedChangeSetId) }, [props.selectedChangeSetId, props.changeSets])
   const act = async (action: () => Promise<void>): Promise<boolean> => { setWorking(true); setError(null); try { await action(); await props.onRefresh(); return true } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : "요청을 완료하지 못했습니다."); return false } finally { setWorking(false) } }
   const selectProposal = (id: string) => {
     if (id === selected?.id || !props.onBeforeDiscard()) return
