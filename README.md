@@ -31,18 +31,19 @@ Node 서버만 직접 실행하려면 `.env.example`을 참고해 `.env`를 만�
 ```dotenv
 OPENAI_API_KEY=your-key
 OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4.1-mini
+# Optional default; otherwise select a model in the web UI.
+OPENAI_MODEL=
 ```
 
 에이전트 경로는 SSE 스트리밍, function tool 호출, strict JSON Schema 출력을 함께 지원하는 OpenAI 호환 Chat Completions API가 필요합니다. "OpenAI 호환"을 표방하는 모든 제공자나 모델이 이 조합을 지원하는 것은 아닙니다. 최종 JSON은 로컬 스키마와 선택된 모든 ID, 보호 원문 조건으로 다시 검증합니다. 키는 서버에만 보관하며 브라우저 응답에 포함하지 않습니다. 키가 없으면 **AI가 아닌 로컬 예제 모드**로 표시됩니다. 제공자 장애를 예제 응답으로 숨기지 않습니다. 실제 모델의 문학적 품질이나 제공자의 데이터 보관 정책은 보장하지 않습니다.
 
-현재 제공자 설정은 서버 시작 시 읽는 환경 변수로만 관리합니다. 웹 UI 안에서 키·모델·base URL을 저장하거나 바꾸는 설정 화면은 아직 없습니다. 환경 변수를 설정해 서버를 시작하면 기존 웹 UI에서 피드백 입력, 모델 Run, 결과 검토, 수동 평가와 채택 결정을 이어갈 수 있습니다. 브라우저에는 제공자 구성 여부와 실행 상태만 노출되며 비밀 키는 전송하지 않습니다.
+키와 base URL은 서버 시작 시 `.env`에서 읽습니다. 실행 모델은 웹 UI의 **에이전트 실행** 또는 **AI 수정 제안**에서 선택하며, `OPENAI_MODEL`은 선택적인 기본값입니다. 선택한 모델은 Run에 고정되어 이후 기본값 변경의 영향을 받지 않습니다. 모델 목록을 제공하지 않는 호환 서버에서는 모델 ID를 직접 입력할 수 있습니다. 브라우저에는 모델 목록과 실행 상태만 노출되며 비밀 키는 전송하지 않습니다.
 
 설정 후 표준 모델 목록 조회와, 명시적으로 동의한 경우에만 실제 Part 도구 루프를 확인할 수 있습니다.
 
 ```sh
 pnpm provider:check
-pnpm provider:check --generate # 실제 호출과 quota를 사용할 수 있음
+pnpm provider:check --generate # CLI에서는 OPENAI_MODEL 필요; 실제 호출과 quota를 사용할 수 있음
 pnpm start
 ```
 
