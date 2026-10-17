@@ -11,5 +11,6 @@ export class GenerationError extends DomainError {
     super(code, message, evidence.status ?? 502);
     this.outputTokens = evidence.outputTokens;
     this.invocationStarted = evidence.invocationStarted;
+    this.usageManaged = evidence.usageManaged ?? false;
   }
 }

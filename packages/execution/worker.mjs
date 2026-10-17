@@ -1,5 +1,6 @@
 import { claimJob, completeJob } from './queue.mjs';
 import { GenerationError } from '../../app/errors.mjs';
+import { heartbeatJob } from './model-budget.mjs';
 
 export function createWorker({ store, execute, finalize }) {
   let busy = false;
@@ -12,16 +13,27 @@ export function createWorker({ store, execute, finalize }) {
     busy = true;
     let claim;
     let payload;
+    let heartbeat;
     try {
       claim = await claimJob(store);
       if (!claim) return;
       const controller = new AbortController();
       active.set(claim.run.id, controller);
-      payload = await execute({ run: claim.run, signal: controller.signal });
+      heartbeat = setInterval(async () => {
+        try {
+          const renewed = await heartbeatJob(store, { jobId: claim.job.id, leaseToken: claim.job.leaseToken });
+          if (!renewed.accepted) controller.abort();
+        } catch {
+          controller.abort();
+        }
+      }, 30_000);
+      heartbeat.unref();
+      payload = await execute({ run: claim.run, job: claim.job, signal: controller.signal });
       await completeJob(store, {
         jobId: claim.job.id, leaseToken: claim.job.leaseToken,
-        outputTokens: payload.outputTokens ?? payload.estimatedOutputTokens ?? Array.from(payload.text).length,
+        outputTokens: payload.usageManaged ? 0 : payload.outputTokens ?? payload.estimatedOutputTokens ?? Array.from(payload.text).length,
         usageKnown: typeof payload.outputTokens === 'number',
+        usageManaged: payload.usageManaged === true,
         payload, finalize,
       });
     } catch (error) {
@@ -31,9 +43,11 @@ export function createWorker({ store, execute, finalize }) {
         jobId: claim.job.id, leaseToken: claim.job.leaseToken,
         error: { code: error instanceof Error && 'code' in error ? error.code : 'GENERATION_FAILED', message: error instanceof Error ? error.message : '생성 실패' },
         outputTokens: reportedTokens ?? 0, usageKnown: typeof reportedTokens === 'number',
+        usageManaged: error instanceof GenerationError && error.usageManaged,
         releaseReservation: error instanceof GenerationError && !error.invocationStarted,
       });
     } finally {
+      clearInterval(heartbeat);
       if (claim) active.delete(claim.run.id);
       busy = false;
     }

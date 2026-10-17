@@ -11,7 +11,7 @@ import { GenerationError } from './errors.mjs';
 export function createApplicationWorker(store) {
   return createWorker({
     store,
-    execute: async ({ run, signal }) => {
+    execute: async ({ run, job, signal }) => {
       const state = await store.read();
       assertRecordBranch(state, run);
       if (run.purpose === 'repair_bundle') {
@@ -21,7 +21,7 @@ export function createApplicationWorker(store) {
         if (state.head !== run.baseSnapshotId || workspaceHash(state) !== run.baseWorkspaceHash) {
           throw new GenerationError('STALE_WORKSPACE', '실행 전에 원고 또는 기획이 바뀌었습니다. 새 개정 요청을 만드세요.', { status: 409, outputTokens: 0, invocationStarted: false });
         }
-        return generateRepair({ run, signal });
+        return generateRepair({ run, job, store, signal });
       }
       const context = buildGenerationContext(state, run);
       const generated = await generateCandidate({
