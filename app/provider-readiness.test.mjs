@@ -39,6 +39,19 @@ test('reports catalog access without claiming untested generation capabilities',
   assert.equal(requests, 1);
 });
 
+test('lists models without requiring a configured default model', async (t) => {
+  const baseUrl = await providerFixture(t, (_request, response) => {
+    response.setHeader('content-type', 'application/json');
+    response.end(JSON.stringify({ object: 'list', data: [{ id: 'second' }, { id: 'first' }] }));
+  });
+
+  const result = await checkProvider(config(baseUrl, 'project-secret', null));
+
+  assert.deepEqual(result.modelIds, ['first', 'second']);
+  assert.equal(result.model, null);
+  assert.equal(result.generation, 'unverified');
+});
+
 test('classifies unauthorized responses without exposing the key or response body', async (t) => {
   const baseUrl = await providerFixture(t, (_request, response) => {
     response.writeHead(401, { 'content-type': 'application/json' });
