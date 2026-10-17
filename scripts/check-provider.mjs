@@ -27,12 +27,17 @@ async function main() {
   }
   const config = providerConfig(process.env, { requireApiKey: true });
   const readiness = await checkProvider(config);
-  process.stdout.write(`PROVIDER_CHECK PASS model=${readiness.model}\n`);
+  process.stdout.write(`PROVIDER_CHECK PASS${readiness.model ? ` default_model=${readiness.model}` : ''}\n`);
   process.stdout.write(`MODEL_CATALOG ${readiness.catalog.toUpperCase()}${readiness.modelIds.length ? ` models=${readiness.modelIds.join(',')}` : ''}\n`);
   process.stdout.write('GENERATION stream=UNVERIFIED tools=UNVERIFIED strict_json_schema=UNVERIFIED\n');
   if (!options.generate) {
     process.stdout.write('GENERATION skipped (use --generate to opt in; may consume provider quota)\n');
     return;
+  }
+  if (!config.model) {
+    const error = new Error('Set OPENAI_MODEL before using --generate.');
+    error.code = 'MODEL_REQUIRED';
+    throw error;
   }
   const probe = await runPartProbe();
   process.stdout.write(`PART_INTEGRATION PASS result=${probe.resultState}\n`);

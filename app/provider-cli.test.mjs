@@ -45,6 +45,46 @@ test('requires an explicit API key before contacting a provider', async () => {
   assert.doesNotMatch(result.stderr, /Bearer/);
 });
 
+test('lists provider models without claiming generation validation when no default model is selected', async (t) => {
+  const server = createServer((_request, response) => {
+    response.setHeader('content-type', 'application/json');
+    response.end(JSON.stringify({ object: 'list', data: [{ id: 'select-me' }] }));
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => server.close());
+  const address = server.address();
+  assert.ok(address && typeof address === 'object');
+
+  const result = await runCli([], {
+    OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`, OPENAI_API_KEY: 'provider-secret', OPENAI_MODEL: '',
+  });
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /MODEL_CATALOG AVAILABLE models=select-me/);
+  assert.match(result.stdout, /GENERATION .*UNVERIFIED/);
+  assert.doesNotMatch(result.stdout, /model=null/);
+});
+
+test('requires a selected model only when generation is requested', async (t) => {
+  const server = createServer((_request, response) => {
+    response.setHeader('content-type', 'application/json');
+    response.end(JSON.stringify({ object: 'list', data: [{ id: 'select-me' }] }));
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => server.close());
+  const address = server.address();
+  assert.ok(address && typeof address === 'object');
+
+  const result = await runCli(['--generate'], {
+    OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`, OPENAI_API_KEY: 'provider-secret', OPENAI_MODEL: '',
+  });
+
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /MODEL_REQUIRED/);
+});
+
 test('runs the real Part tool loop only with explicit generate opt-in', async (t) => {
   let chatCalls = 0;
   const server = createServer(async (request, response) => {
