@@ -4,6 +4,7 @@ import type { SyntheticEvent } from "react"
 import type { ExecutionBudget, RuntimeInfo, SafeRunSummary } from "../../packages/execution/contracts.ts"
 import { createRepairRun } from "../api"
 import type { Plan, Scene } from "../types"
+import { ModelSelector } from "./ModelSelector"
 
 const budgetFields = [
   { key: "maxModelCalls", label: "모델 호출", unit: "회" },
@@ -30,14 +31,17 @@ export function RuntimeComposer(props: Props) {
   const [sceneIds, setSceneIds] = useState<readonly string[]>([])
   const [planIds, setPlanIds] = useState<readonly string[]>([])
   const [budget, setBudget] = useState<ExecutionBudget>(props.runtime.publicBudget.defaults)
+  const [model, setModel] = useState("")
+  const [modelDirty, setModelDirty] = useState(false)
+  const [modelReady, setModelReady] = useState(props.runtime.nonAI)
   const [launching, setLaunching] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const dirty = instruction.length > 0 || sceneIds.length > 0 || planIds.length > 0
+  const dirty = instruction.length > 0 || sceneIds.length > 0 || planIds.length > 0 || modelDirty
   useEffect(() => setBudget(props.runtime.publicBudget.defaults), [props.runtime])
   useEffect(() => props.onDirtyChange(dirty), [dirty, props.onDirtyChange])
   const toggle = (values: readonly string[], id: string): readonly string[] => values.includes(id) ? values.filter((value) => value !== id) : [...values, id]
   const budgetValid = budget.maxKnownTokens >= budget.maxOutputTokens && budget.maxOutputTokensPerInvocation <= budget.maxOutputTokens
-  const canLaunch = instruction.trim().length > 0 && sceneIds.length + planIds.length > 0 && budgetValid && !launching
+  const canLaunch = instruction.trim().length > 0 && sceneIds.length + planIds.length > 0 && budgetValid && modelReady && !launching
   const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canLaunch) return
@@ -52,11 +56,13 @@ export function RuntimeComposer(props: Props) {
         planIds,
         feedbackIds: [],
         budget,
+        ...(model ? { model } : {}),
       }, props.branchId)
       props.onCreated(run)
       setInstruction("")
       setSceneIds([])
       setPlanIds([])
+      setModelDirty(false)
       props.onDirtyChange(false)
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : "실행을 시작하지 못했습니다.")
@@ -67,6 +73,7 @@ export function RuntimeComposer(props: Props) {
   return <section className="runtime-composer" aria-labelledby="runtime-composer-title">
     <header><div><p className="overline">SCOPED REPAIR</p><h3 id="runtime-composer-title">범위를 정해 실행하기</h3></div><SlidersHorizontal /></header>
     <form onSubmit={submit}>
+      <ModelSelector value={model} disabled={launching} localDemo={props.runtime.nonAI} onChange={(value, userInitiated) => { setModel(value); if (userInitiated) setModelDirty(true) }} onReadyChange={setModelReady} />
       <label className="field-label">수정 의도<textarea value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="검토할 문제와 유지해야 할 조건을 구체적으로 적으세요." required /></label>
       <div className="runtime-scope-grid">
         <fieldset><legend>원고 장면</legend>{props.scenes.map((scene) => <label key={scene.id}><input type="checkbox" checked={sceneIds.includes(scene.id)} onChange={() => setSceneIds(toggle(sceneIds, scene.id))} /><span>{scene.chapter} · {scene.title}</span></label>)}</fieldset>
