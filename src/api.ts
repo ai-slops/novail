@@ -7,8 +7,8 @@ import type { ChangeSet, MergePreview, RevisionContext } from "../packages/revis
 import { evaluationReportRequestSchema, evaluationReportSchema, evaluationReportsResponseSchema } from "../packages/revision/evaluation-contracts.ts"
 import type { EvaluationReport, EvaluationReportRequest, EvaluationReportsResponse } from "../packages/revision/evaluation-contracts.ts"
 import { repairRunSchema } from "../packages/revision/contracts.ts"
-import { runtimeInfoSchema, safeRunDetailSchema, safeRunSummarySchema } from "../packages/execution/contracts.ts"
-import type { ExecutionBudget, PublicRuntimeEvent, RuntimeInfo, SafeRunDetail, SafeRunSummary } from "../packages/execution/contracts.ts"
+import { providerModelsSchema, runtimeInfoSchema, safeRunDetailSchema, safeRunSummarySchema } from "../packages/execution/contracts.ts"
+import type { ExecutionBudget, ProviderModels, PublicRuntimeEvent, RuntimeInfo, SafeRunDetail, SafeRunSummary } from "../packages/execution/contracts.ts"
 import { decodeRuntimeEventChunk } from "./runtime-events"
 
 export { snapshotExportUrl } from "./api-contract"
@@ -139,7 +139,17 @@ export type RepairRunInput = Readonly<{
   planIds: readonly string[]
   feedbackIds: readonly string[]
   budget: ExecutionBudget
+  model?: string
 }>
+
+export const getProviderModels = async (): Promise<ProviderModels> => {
+  try {
+    return providerModelsSchema.parse(await client.get("api/provider/models").json<unknown>())
+  } catch (error: unknown) {
+    if (error instanceof HTTPError) throw await apiError(error)
+    throw error
+  }
+}
 
 export const getRuntimeInfo = async (): Promise<RuntimeInfo> => runtimeInfoSchema.parse(
   await client.get("api/runtime-info").json<unknown>(),
