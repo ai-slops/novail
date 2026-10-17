@@ -6,7 +6,7 @@
 
 ## 시작하기
 
-Node.js 24 이상, pnpm을 사용합니다.
+Node.js **24.22.0 이상**과 pnpm을 사용합니다. 저장소의 `.node-version`은 `24.22.0`으로 고정되어 있으므로 사용하는 버전 관리자에서 이를 적용하세요.
 
 ```sh
 npx pnpm install
@@ -34,7 +34,7 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-OpenAI 호환 Chat Completions API의 JSON 출력을 로컬 Zod 스키마로 검증합니다. 키는 서버에만 보관하며 브라우저 응답에 포함하지 않습니다. 키가 없으면 **AI가 아닌 로컬 예제 모드**로 표시됩니다. 제공자 장애를 예제 응답으로 숨기지 않습니다. 실제 모델의 문학적 품질이나 제공자의 데이터 보관 정책은 보장하지 않습니다.
+에이전트 경로는 SSE 스트리밍, function tool 호출, strict JSON Schema 출력을 함께 지원하는 OpenAI 호환 Chat Completions API가 필요합니다. "OpenAI 호환"을 표방하는 모든 제공자나 모델이 이 조합을 지원하는 것은 아닙니다. 최종 JSON은 로컬 스키마와 선택된 모든 ID, 보호 원문 조건으로 다시 검증합니다. 키는 서버에만 보관하며 브라우저 응답에 포함하지 않습니다. 키가 없으면 **AI가 아닌 로컬 예제 모드**로 표시됩니다. 제공자 장애를 예제 응답으로 숨기지 않습니다. 실제 모델의 문학적 품질이나 제공자의 데이터 보관 정책은 보장하지 않습니다.
 
 현재 제공자 설정은 서버 시작 시 읽는 환경 변수로만 관리합니다. 웹 UI 안에서 키·모델·base URL을 저장하거나 바꾸는 설정 화면은 아직 없습니다. 환경 변수를 설정해 서버를 시작하면 기존 웹 UI에서 피드백 입력, 모델 Run, 결과 검토, 수동 평가와 채택 결정을 이어갈 수 있습니다. 브라우저에는 제공자 구성 여부와 실행 상태만 노출되며 비밀 키는 전송하지 않습니다.
 
@@ -47,6 +47,12 @@ npx pnpm dev
 ```
 
 Vite는 5173, API는 3000 포트입니다. `PORT`로 API 실행 포트를 바꿀 수 있습니다. 운영 빌드는 API 서버가 `dist/`를 직접 제공합니다.
+
+### 에이전트 실행
+
+웹 UI의 **에이전트 실행** 탭에서 장면·기획과 실행 예산을 선택하고, 최근 Run 기록과 SSE 진행 이벤트를 보며, 실행을 취소하거나 생성된 변경 세트를 **개정 검토**에서 열 수 있습니다. 생성 결과는 항상 검토 대기 제안이며 자동 채택되지 않습니다.
+
+이 경로는 실험적 [`@slop-lab/part` `0.1.0`](https://www.npmjs.com/package/@slop-lab/part/v/0.1.0)과 [`@slop-lab/part-plugins` `0.1.0`](https://www.npmjs.com/package/@slop-lab/part-plugins/v/0.1.0)을 정확한 버전으로 고정합니다. 두 패키지의 소스 기준은 [`slop-lab/part`](https://github.com/slop-lab/part)입니다. 허용 도구, 예산·사용량 의미, 큐 복구, 공개 API와 제한은 [`docs/runtime.md`](docs/runtime.md)를 참조하세요.
 
 ## 사용 흐름
 
@@ -79,6 +85,8 @@ Vite는 5173, API는 3000 포트입니다. `PORT`로 API 실행 포트를 바꿀
 - 상대적 시간 제약의 모순 검출, 증거 부족은 unknown으로 유지
 - 내구성 Run/Job 큐, 원자적 호출 예약, lease fencing, 취소 후 늦은 결과 차단
 - 영구 Run 이벤트와 Last-Event-ID 기반 SSE 재접속
+- Part `createAgent` 모델 루프, 세 개의 동결된 읽기 전용 도구, 호출·도구·토큰·호출당 출력·deadline 예산, 실행 취소
+- 에이전트 실행 탭의 범위·예산 작성, 최근 기록, 공개 SSE 진행 상황, 사용량, 결과 검토 연결
 - 스냅샷별 Markdown·DOCX·manifest 내보내기, 한글·특수문자·줄바꿈 보존
 - 내용 hash와 검토 시점 head에 묶인 판본 발행 승인, 별도 개정판 승인, 불변 판본과 승인·감사·outbox 이력
 - 공유 스냅샷을 기준으로 한 작업 분기 생성·전환, 분기별 초안·기획·후보·실행 격리, 동일 head의 다른 분기에 대한 잘못된 쓰기 차단
@@ -99,7 +107,8 @@ Vite는 5173, API는 3000 포트입니다. `PORT`로 API 실행 포트를 바꿀
 - 분기 이름 변경·삭제와 외부 출판 서비스 연동은 포함하지 않습니다. 병합 변경 세트의 부분 파생과 파생 자식의 재귀 파생도 의도적으로 허용하지 않습니다.
 - 분기 도입 이전의 과거 스냅샷에는 기획 맥락이 없을 수 있습니다. 그런 스냅샷의 분기는 차단하며, 현재 기준본이나 맥락이 기록된 새 스냅샷에서 시작해야 합니다. 없는 과거 설정을 현재 설정으로 추정해서 채우지 않습니다.
 - Run은 하나의 후보 작업 단위를 실행합니다. 일반적인 다중 Job DAG, 반복 수정 정책과 공급자별 금액 정산은 미완성입니다. lease 만료 후 사용량이 불명확하면 예약을 유지하고 실패 상태로 남겨 명시적 새 실행을 요구합니다.
-- 모델 사용량을 제공자가 보고하지 않으면 추정치로 구분합니다. 모델 응답 후 저장 전 장애의 중복 과금 가능성을 제거했다고 주장하지 않습니다.
+- 모델 사용량을 제공자가 보고하지 않으면 예약한 호출당 출력 한도 전체를 보수적 추정치로 차감하며 실제 소비 토큰을 뜻하지 않습니다. 응답 후 저장 전 장애나 취소 시 이미 발생한 제공자 과금 가능성을 제거했다고 주장하지 않습니다.
+- Part 경로에는 셸·네트워크·쓰기·승인 도구, 별도 프로세스 브리지, 브라우저용 Part 런타임, 자동 의미 평가기가 없습니다. 기존 단일 장면 V1 직접 gateway 호환 경로도 Part 실행으로 간주하지 않습니다.
 - 실서비스 인터넷 공개 전 인증·접근제어·백업 복구·부하 검증이 필요합니다. 현재 기본 모드는 신뢰할 수 있는 개인 개발 환경용입니다.
 
 ## 검증
@@ -112,7 +121,7 @@ npx pnpm build
 
 테스트는 생성 문장을 고정하지 않고 원문 보존, 승인 경계, 오래된 베이스, 보호 문장, 멱등성, 시간 제약, span, 취소, lease, 예산 예약, SSE 복구와 V2 변경 세트·부분 파생·병합을 검사합니다. 실제 유료 공급자 호출은 API 키가 있는 환경에서 별도로 확인해야 합니다.
 
-분기 API와 호환성은 [`docs/branches.md`](docs/branches.md), V2 변경 세트·부분 파생·병합 계약은 [`docs/revisions.md`](docs/revisions.md), 판본 API와 보호 계약은 [`docs/editions.md`](docs/editions.md), 사람 평가 계약은 [`docs/evaluations.md`](docs/evaluations.md)를 참조하세요. 구현되지 않은 다음 우선순위와 완료 기준은 [`docs/roadmap.md`](docs/roadmap.md)에 정리합니다.
+런타임과 공개 진행 계약은 [`docs/runtime.md`](docs/runtime.md), 분기 API와 호환성은 [`docs/branches.md`](docs/branches.md), V2 변경 세트·부분 파생·병합 계약은 [`docs/revisions.md`](docs/revisions.md), 판본 API와 보호 계약은 [`docs/editions.md`](docs/editions.md), 사람 평가 계약은 [`docs/evaluations.md`](docs/evaluations.md)를 참조하세요. 구현되지 않은 다음 우선순위와 완료 기준은 [`docs/roadmap.md`](docs/roadmap.md)에 정리합니다.
 
 ## 코드 구조
 
@@ -123,7 +132,7 @@ packages/domain/        준비도, Unicode span, 시간 제약 검사
 packages/execution/     Run/Job lease, 예약, Worker, SSE
 packages/revision/      변경 세트, 영향 검토, 부분 파생, 병합 계보
 DESIGN.md               디자인 토큰, 화면 및 접근성 규칙
-docs/                   분기·개정·판본·평가 계약과 후속 로드맵
+docs/                   런타임·분기·개정·판본·평가 계약과 후속 로드맵
 compose.yml             PostgreSQL과 앱 실행 구성
 ```
 
