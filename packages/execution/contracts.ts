@@ -75,6 +75,14 @@ export const PUBLIC_RUNTIME_EVENT_TYPES = Object.freeze([
   'runtime.progress.truncated',
 ] as const);
 
+export const providerModelIdSchema = z.string().trim().min(1).max(200)
+  .refine((value) => !/[\u0000-\u001f\u007f]/u.test(value), 'Model ID must not contain control characters');
+export const providerModelsSchema = z.strictObject({
+  configured: z.boolean(),
+  defaultModel: providerModelIdSchema.nullable(),
+  models: z.array(z.strictObject({ id: providerModelIdSchema })),
+});
+
 const publicErrorSchema = z.strictObject({ code: z.string(), message: z.string() });
 const publicUsageSchema = z.strictObject({
   reservedModelCalls: z.number().int().nonnegative(),
@@ -101,6 +109,7 @@ export const safeRunSummarySchema = z.strictObject({
   budget: executionBudgetSchema,
   usage: publicUsageSchema,
   runtime: runRuntimeSchema.optional(),
+  selectedModel: providerModelIdSchema.optional(),
   resultRef: z.string().optional(),
   staleBase: z.boolean().optional(),
   error: publicErrorSchema.optional(),
@@ -148,7 +157,7 @@ export const runtimeInfoSchema = z.strictObject({
   partVersion: z.literal('0.1.0'),
   mode: z.enum(['local-demo', 'openai-compatible']),
   nonAI: z.boolean(),
-  model: z.strictObject({ label: z.string() }),
+  model: z.strictObject({ label: z.string(), defaultModel: providerModelIdSchema.nullable() }),
   publicBudget: z.strictObject({
     defaults: completeBudgetSchema,
     limits: z.record(z.string(), z.strictObject({ min: z.number(), max: z.number() })),
@@ -165,3 +174,4 @@ export type SafeRunSummary = z.infer<typeof safeRunSummarySchema>;
 export type SafeRunDetail = z.infer<typeof safeRunDetailSchema>;
 export type PublicRuntimeEvent = z.infer<typeof publicRuntimeEventSchema>;
 export type RuntimeInfo = z.infer<typeof runtimeInfoSchema>;
+export type ProviderModels = z.infer<typeof providerModelsSchema>;

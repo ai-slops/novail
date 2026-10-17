@@ -21,6 +21,7 @@ import { mountRevisionRoutes } from "./change-set-routes.mjs";
 import { mountRepairRoutes } from "./repair-routes.mjs";
 import { mountMergeRoutes } from "./merge-routes.mjs";
 import { mountEvaluationReportRoutes } from "./evaluation-report-routes.mjs";
+import { mountProviderRoutes } from "./provider-routes.mjs";
 import { assertReadScope, branchHeader } from "./branch-scope.mjs";
 import { runtimeInfo } from "../packages/execution/public-contract.mjs";
 
@@ -186,6 +187,7 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
   mountBranchRoutes(app, { store, command });
   mountRevisionRoutes(app, { store, command });
   mountEvaluationReportRoutes(app, { store, command });
+  mountProviderRoutes(app);
   mountRepairRoutes(app, { store });
   mountMergeRoutes(app, { store, command });
 
