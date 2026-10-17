@@ -44,7 +44,8 @@
 .runtime-connection { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-faint); font-size: var(--type-caption); font-weight: 700; }
 .runtime-connection.live { color: var(--teal); }
 .runtime-detail > header code { color: var(--ink-faint); font-size: var(--type-caption); overflow-wrap: anywhere; }
-.runtime-provenance { display: block; margin-block-start: var(--space-2); color: var(--ink-soft); font-size: var(--type-caption); overflow-wrap: anywhere; }
+.runtime-selected-model, .runtime-provenance { display: block; margin-block-start: var(--space-2); color: var(--ink-soft); font-size: var(--type-caption); overflow-wrap: anywhere; }
+.runtime-selected-model { color: var(--teal); font-weight: 700; }
 .runtime-usage { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
 .runtime-usage span { display: grid; gap: var(--space-1); padding: var(--space-3); border-inline-end: 1px solid var(--rule); }
 .runtime-usage span:last-child { border-inline-end: 0; }
