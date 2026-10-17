@@ -16,7 +16,7 @@ export class PartProbeError extends Error {
 }
 
 export async function runPartProbe() {
-  const directory = await mkdtemp(join(tmpdir(), 'novail-router4u-'));
+  const directory = await mkdtemp(join(tmpdir(), 'novail-provider-'));
   const store = new FileStore(join(directory, 'state.json'));
   let worker;
   try {
