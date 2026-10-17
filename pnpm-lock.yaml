@@ -17,6 +17,12 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.0
         version: 1.19.17(hono@4.13.8)
+      '@slop-lab/part':
+        specifier: 0.1.0
+        version: 0.1.0
+      '@slop-lab/part-plugins':
+        specifier: 0.1.0
+        version: 0.1.0
       docx:
         specifier: 9.7.1
         version: 9.7.1
@@ -480,6 +486,14 @@ packages:
     resolution: {integrity: sha512-Erx822VRBwLa124shbj+wNXe//BOgMEctDV0m1aqTQdNO1S69DgNUCFKC1RCeZfixs1J31l6igk1ziyXErbigQ==}
     cpu: [x64]
     os: [win32]
+
+  '@slop-lab/part-plugins@0.1.0':
+    resolution: {integrity: sha512-6jCtb5F4xuzuKLy9EE2gJKQJAG77cZ2V0u9y4y63J23kwb9ElRnSS+Yp3aFJ5O4444zg+qcixyZjSdp/IJrGAQ==}
+    engines: {node: '>=24.22.0'}
+
+  '@slop-lab/part@0.1.0':
+    resolution: {integrity: sha512-kKHBHJbkdaX6AoRD34icGKS1bfpR7n02u6tnAnw1Ej03VpBrLaOOptwEJMBVzV7HOn7lwzKPSoy160K3K1wZng==}
+    engines: {node: '>=24.22.0'}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -1143,6 +1157,12 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.63.4':
     optional: true
+
+  '@slop-lab/part-plugins@0.1.0':
+    dependencies:
+      '@slop-lab/part': 0.1.0
+
+  '@slop-lab/part@0.1.0': {}
 
   '@types/babel__core@7.20.5':
     dependencies:

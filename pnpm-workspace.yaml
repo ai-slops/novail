@@ -1,2 +1,5 @@
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@slop-lab/part@0.1.0'
+  - '@slop-lab/part-plugins@0.1.0'
