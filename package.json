@@ -11,6 +11,8 @@
     "dev:api": "node --env-file-if-exists=.env --watch app/server.mjs",
     "build": "tsc --noEmit && vite build",
     "start": "node --env-file-if-exists=.env app/server.mjs",
+    "router4u:check": "node --env-file-if-exists=.env.router4u scripts/check-router4u.mjs",
+    "start:router4u": "node --env-file=.env.router4u scripts/start-router4u.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --test app/*.test.mjs packages/domain/*.test.mjs packages/execution/*.test.mjs src/*.test.mjs"
   },
