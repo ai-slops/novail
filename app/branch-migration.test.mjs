@@ -134,8 +134,9 @@ test("Given global legacy jobs and events for two projects, when projects are re
   assert.deepEqual(active.jobs.map((job) => job.id), ["job-active"]);
   assert.deepEqual(active.runEvents.map((event) => event.id), ["event-active"]);
 
-  await command(app, "/api/projects/project-queue-archive/switch", {});
+  const response = await command(app, "/api/projects/project-queue-archive/switch", {});
   const archived = await store.read();
+  assert.equal(response.status, 200);
   assert.deepEqual(archived.jobs.map((job) => job.id), ["job-archived"]);
   assert.deepEqual(archived.runEvents.map((event) => event.id), ["event-archived"]);
 });
