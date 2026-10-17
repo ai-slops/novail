@@ -6,6 +6,10 @@ import { changeSetSchema, mergePreviewSchema, revisionContextSchema } from "../p
 import type { ChangeSet, MergePreview, RevisionContext } from "../packages/revision/contracts.ts"
 import { evaluationReportRequestSchema, evaluationReportSchema, evaluationReportsResponseSchema } from "../packages/revision/evaluation-contracts.ts"
 import type { EvaluationReport, EvaluationReportRequest, EvaluationReportsResponse } from "../packages/revision/evaluation-contracts.ts"
+import { repairRunSchema } from "../packages/revision/contracts.ts"
+import { runtimeInfoSchema, safeRunDetailSchema, safeRunSummarySchema } from "../packages/execution/contracts.ts"
+import type { ExecutionBudget, PublicRuntimeEvent, RuntimeInfo, SafeRunDetail, SafeRunSummary } from "../packages/execution/contracts.ts"
+import { decodeRuntimeEventChunk } from "./runtime-events"
 
 export { snapshotExportUrl } from "./api-contract"
 
@@ -125,4 +129,76 @@ export async function waitForRun(id: string, branchId: string): Promise<string |
     throw new ApiError(result.error?.code ?? "RUN_PENDING", result.error?.message ?? "작업이 아직 완료되지 않았습니다. 버전 기록에서 실행 상태를 확인하세요.")
   }
   return result.resultRef ?? undefined
+}
+
+export type RepairRunInput = Readonly<{
+  baseSnapshotId: string
+  baseWorkspaceHash: string
+  instruction: string
+  sceneIds: readonly string[]
+  planIds: readonly string[]
+  feedbackIds: readonly string[]
+  budget: ExecutionBudget
+}>
+
+export const getRuntimeInfo = async (): Promise<RuntimeInfo> => runtimeInfoSchema.parse(
+  await client.get("api/runtime-info").json<unknown>(),
+)
+
+export const getRuntimeRuns = (branchId: string): Promise<readonly SafeRunSummary[]> => parseGet(
+  "api/runs?limit=50",
+  branchId,
+  (value) => safeRunSummarySchema.array().parse(value),
+)
+
+export const getRuntimeRun = (id: string, branchId: string): Promise<SafeRunDetail> => parseGet(
+  `api/runs/${encodeURIComponent(id)}`,
+  branchId,
+  (value) => safeRunDetailSchema.parse(value),
+)
+
+export const createRepairRun = async (input: RepairRunInput, branchId: string): Promise<SafeRunSummary> => {
+  const validated = repairRunSchema.parse(input)
+  return safeRunSummarySchema.parse(await mutateJson<unknown>("api/repair-runs", validated, branchId))
+}
+
+export const cancelRuntimeRun = async (id: string, branchId: string): Promise<SafeRunSummary> => safeRunSummarySchema.parse(
+  await mutateJson<unknown>(`api/runs/${encodeURIComponent(id)}/cancel`, {}, branchId),
+)
+
+export type RuntimeStreamOptions = Readonly<{
+  id: string
+  branchId: string
+  lastEventId?: string
+  signal: AbortSignal
+  onEvent: (event: PublicRuntimeEvent) => void
+}>
+
+export async function streamRuntimeEvents(options: RuntimeStreamOptions): Promise<void> {
+  const headers = options.lastEventId === undefined
+    ? branchHeaders(options.branchId)
+    : { ...branchHeaders(options.branchId), "Last-Event-ID": options.lastEventId }
+  try {
+    const response = await client.get(`api/runs/${encodeURIComponent(options.id)}/events`, {
+      headers,
+      retry: 0,
+      signal: options.signal,
+      timeout: false,
+    })
+    const reader = response.body?.getReader()
+    if (!reader) throw new ApiError("STREAM_UNAVAILABLE", "이 브라우저에서는 실행 진행 스트림을 열 수 없습니다.")
+    const decoder = new TextDecoder()
+    let remainder = ""
+    while (!options.signal.aborted) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      const decoded = decodeRuntimeEventChunk(remainder, decoder.decode(chunk.value, { stream: true }))
+      remainder = decoded.remainder
+      for (const event of decoded.events) options.onEvent(event)
+    }
+  } catch (error: unknown) {
+    if (options.signal.aborted && error instanceof Error && error.name === "AbortError") return
+    if (error instanceof HTTPError) throw await apiError(error)
+    throw error
+  }
 }
