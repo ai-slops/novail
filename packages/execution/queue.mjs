@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { assertActiveScope, assertReplayScope, resolveBranchScope } from '../../app/branch-scope.mjs';
 import { assertRecordBranch, isActiveRecord } from '../../app/branch-state.mjs';
 import { prepareRepairInput } from '../../app/repair-input.mjs';
+import { executionBudgetSchema } from './contracts.ts';
 
 export class RunError extends Error {
   constructor(code, message, status = 409) {
@@ -58,7 +59,8 @@ export async function enqueueRun(store, input) {
       id: randomUUID(), projectId: state.project.id, branchId: scope.branchId, queueManaged: true,
       state: 'queued', purpose, baseSnapshotId: input.baseSnapshotId,
       ...details, instruction: input.instruction, contextVersion: state.contextVersion ?? 0,
-      budget: input.budget, reservedCalls: 0, actualOutputTokens: 0,
+      budget: executionBudgetSchema.parse(input.budget), reservedCalls: 0, reservedOutputTokens: 0,
+      actualOutputTokens: 0, actualKnownTokens: 0,
       createdAt: new Date().toISOString(), cancellationRequested: false,
     };
     state.runs.push(run);
@@ -101,7 +103,7 @@ export async function controlRun(store, input) {
         ]));
         break;
       case 'pause':
-        if (!['queued', 'running'].includes(run.state)) throw new RunError('INVALID_TRANSITION', '대기 또는 실행 중인 작업만 중지할 수 있습니다.');
+        if (run.state !== 'queued') throw new RunError('INVALID_TRANSITION', '대기 중인 작업만 일시 정지할 수 있습니다.');
         run.state = 'paused';
         break;
       case 'resume':
@@ -136,6 +138,7 @@ export async function claimJob(store, now = Date.now()) {
     if (!job) return null;
     const run = state.runs.find((item) => item.id === job.runId);
     if (!run) return null;
+    run.budget = executionBudgetSchema.parse(run.budget);
     if (run.reservedCalls >= run.budget.maxModelCalls || run.actualOutputTokens >= run.budget.maxOutputTokens) {
       job.state = 'failed';
       run.state = 'failed';
@@ -154,32 +157,44 @@ export async function claimJob(store, now = Date.now()) {
   });
 }
 
-export async function completeJob(store, input) {
+export async function completeJob(store, input, now = Date.now()) {
   return store.transaction((state) => {
     const job = (state.jobs ?? []).find((item) => item.id === input.jobId);
     if (!job || job.leaseToken !== input.leaseToken) return { accepted: false };
     const run = state.runs.find((item) => item.id === job.runId);
+    if (!run) return { accepted: false };
     if (job.state === 'cancelled' && run?.cancellationRequested) {
-      if (input.usageKnown && job.usageState === undefined) {
+      if (!input.usageManaged && input.usageKnown && job.usageState === undefined) {
         run.actualOutputTokens += input.outputTokens;
         job.usageState = 'reported';
       }
       return { accepted: false };
     }
+    if (job.state === 'running' && job.leaseUntil <= now) {
+      job.state = 'failed';
+      job.usageState = 'usage_unknown';
+      run.state = 'failed';
+      run.error = { code: 'USAGE_UNKNOWN', message: '호출 결과를 확인할 수 없습니다. 예약을 유지하며 명시적인 새 실행이 필요합니다.' };
+      appendEvent(state, run, 'run.failed', run.error);
+      return { accepted: false };
+    }
     if (job.state !== 'running') return { accepted: false };
-    if (!run || run.cancellationRequested || !isActiveRecord(state, run)) return { accepted: false };
+    if (!run || run.state !== 'running' || run.cancellationRequested || !isActiveRecord(state, run)) return { accepted: false };
     if (input.error) {
-      if (input.usageKnown) run.actualOutputTokens += input.outputTokens;
-      if (input.releaseReservation) run.reservedCalls = Math.max(0, run.reservedCalls - 1);
+      if (!input.usageManaged && input.usageKnown) run.actualOutputTokens += input.outputTokens;
+      const claimWasAdopted = job.modelAttempts?.some((attempt) => attempt.adoptedClaim) ?? false;
+      if (input.releaseReservation && (!input.usageManaged || !claimWasAdopted)) {
+        run.reservedCalls = Math.max(0, run.reservedCalls - 1);
+      }
       run.state = 'failed';
       run.error = input.error;
       job.state = 'failed';
-      job.usageState = input.usageKnown ? 'reported' : 'usage_unknown';
+      job.usageState = input.usageManaged ? 'part-managed' : input.usageKnown ? 'reported' : 'usage_unknown';
       appendEvent(state, run, 'run.failed', input.error);
       return { accepted: false };
     }
-    run.actualOutputTokens += input.outputTokens;
-    job.usageState = input.usageKnown ? 'reported' : 'estimated';
+    if (!input.usageManaged) run.actualOutputTokens += input.outputTokens;
+    job.usageState = input.usageManaged ? 'part-managed' : input.usageKnown ? 'reported' : 'estimated';
     if (run.actualOutputTokens > run.budget.maxOutputTokens) {
       run.state = 'failed';
       run.error = { code: 'BUDGET_EXCEEDED', message: '출력 한도를 초과한 후보를 폐기했습니다.' };
