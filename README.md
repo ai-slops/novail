@@ -38,6 +38,8 @@ OPENAI_MODEL=gpt-4.1-mini
 
 현재 제공자 설정은 서버 시작 시 읽는 환경 변수로만 관리합니다. 웹 UI 안에서 키·모델·base URL을 저장하거나 바꾸는 설정 화면은 아직 없습니다. 환경 변수를 설정해 서버를 시작하면 기존 웹 UI에서 피드백 입력, 모델 Run, 결과 검토, 수동 평가와 채택 결정을 이어갈 수 있습니다. 브라우저에는 제공자 구성 여부와 실행 상태만 노출되며 비밀 키는 전송하지 않습니다.
 
+개인 Codex 계정을 Router4U의 프로젝트 키로 연결할 때는 [`docs/router4u.md`](docs/router4u.md)의 로그인, 모델 선택, 읽기 전용 준비 검사, 명시적 생성 probe와 개발 서버 시작 절차를 따르세요. 준비 검사 통과는 실제 추론 성공이나 모델 품질 보장이 아닙니다.
+
 ### 개발
 
 ```sh
@@ -121,7 +123,7 @@ npx pnpm build
 
 테스트는 생성 문장을 고정하지 않고 원문 보존, 승인 경계, 오래된 베이스, 보호 문장, 멱등성, 시간 제약, span, 취소, lease, 예산 예약, SSE 복구와 V2 변경 세트·부분 파생·병합을 검사합니다. 실제 유료 공급자 호출은 API 키가 있는 환경에서 별도로 확인해야 합니다.
 
-런타임과 공개 진행 계약은 [`docs/runtime.md`](docs/runtime.md), 분기 API와 호환성은 [`docs/branches.md`](docs/branches.md), V2 변경 세트·부분 파생·병합 계약은 [`docs/revisions.md`](docs/revisions.md), 판본 API와 보호 계약은 [`docs/editions.md`](docs/editions.md), 사람 평가 계약은 [`docs/evaluations.md`](docs/evaluations.md)를 참조하세요. 구현되지 않은 다음 우선순위와 완료 기준은 [`docs/roadmap.md`](docs/roadmap.md)에 정리합니다.
+런타임과 공개 진행 계약은 [`docs/runtime.md`](docs/runtime.md), Router4U 개인 Codex 연결은 [`docs/router4u.md`](docs/router4u.md), 분기 API와 호환성은 [`docs/branches.md`](docs/branches.md), V2 변경 세트·부분 파생·병합 계약은 [`docs/revisions.md`](docs/revisions.md), 판본 API와 보호 계약은 [`docs/editions.md`](docs/editions.md), 사람 평가 계약은 [`docs/evaluations.md`](docs/evaluations.md)를 참조하세요. 구현되지 않은 다음 우선순위와 완료 기준은 [`docs/roadmap.md`](docs/roadmap.md)에 정리합니다.
 
 ## 코드 구조
 
@@ -132,7 +134,7 @@ packages/domain/        준비도, Unicode span, 시간 제약 검사
 packages/execution/     Run/Job lease, 예약, Worker, SSE
 packages/revision/      변경 세트, 영향 검토, 부분 파생, 병합 계보
 DESIGN.md               디자인 토큰, 화면 및 접근성 규칙
-docs/                   런타임·분기·개정·판본·평가 계약과 후속 로드맵
+docs/                   런타임·Router4U 연결·분기·개정·판본·평가 계약과 후속 로드맵
 compose.yml             PostgreSQL과 앱 실행 구성
 ```
 
