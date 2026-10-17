@@ -1,9 +1,8 @@
 node_modules/
 dist/
 .env
-.env.router4u
-.env.router4u.*
-!.env.router4u.example
+.env.*
+!.env.example
 .data/
 data/
 test-results/
