@@ -5,7 +5,9 @@ export const editionSummary = (edition) => ({
   sourceBranchId: edition.sourceBranchId ?? null,
 });
 
-export const publicState = (state) => ({
+export const publicState = (state) => {
+  const config = providerConfig();
+  return ({
   project: state.project,
   head: state.head,
   workspaceHash: workspaceHash(state),
@@ -18,12 +20,12 @@ export const publicState = (state) => ({
   snapshots: visibleSnapshots(state).map((snapshot) => ({ ...snapshot, canBranch: snapshot.id === state.head || Boolean(snapshot.narrativeContext) })),
   plans: state.plans,
   runs: state.runs.map(safeRunSummary),
-  settings: { ...state.settings, providerConfigured: Boolean(process.env.OPENAI_API_KEY),
-    mode: process.env.OPENAI_API_KEY ? 'openai-compatible' : 'local-demo' },
+  settings: { ...state.settings, providerConfigured: config.mode === 'openai-compatible', mode: config.mode },
   drafts: state.drafts,
   editions: (state.editions ?? []).map(editionSummary),
   projects: [...state.workspaces.map((workspace) => workspace.project), state.project],
-});
+  });
+};
 
 export const exportMarkdown = (state) => [
   `# ${state.project.title}`,
@@ -33,4 +35,5 @@ export const exportMarkdown = (state) => [
 import { projectChangeSets } from '../packages/revision/changesets.mjs';
 import { workspaceHash } from '../packages/revision/workspace.mjs';
 import { branchSummary, visibleSnapshots } from './branch-state.mjs';
+import { providerConfig } from './provider-config.mjs';
 import { safeRunSummary } from '../packages/execution/public-contract.mjs';

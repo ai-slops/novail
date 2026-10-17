@@ -1,6 +1,7 @@
 import { LEGACY_READ_ONLY_TOOL_IDS, PUBLIC_BUDGET_DEFAULTS, PUBLIC_BUDGET_LIMITS, PUBLIC_RUNTIME_EVENT_TYPES,
   READ_ONLY_TOOL_IDS, runtimeInfoSchema, safeJobSummarySchema, safeRunDetailSchema,
   safeRunSummarySchema } from './contracts.ts';
+import { providerConfig } from '../../app/provider-config.mjs';
 
 const legacyEventTypes = new Set([
   'run.queued', 'run.started', 'run.failed', 'run.cancelled', 'run.paused', 'run.resumed',
@@ -98,13 +99,14 @@ export function safeRunEvent(event) {
 }
 
 export function runtimeInfo() {
-  const configured = Boolean(process.env.OPENAI_API_KEY);
+  const config = providerConfig();
+  const configured = config.mode === 'openai-compatible';
   return runtimeInfoSchema.parse({
     runtime: 'part',
     partVersion: '0.1.0',
     mode: configured ? 'openai-compatible' : 'local-demo',
     nonAI: !configured,
-    model: { label: configured ? `OpenAI 호환 제공자 · ${process.env.OPENAI_MODEL ?? 'gpt-4.1-mini'}`
+    model: { label: configured ? `OpenAI 호환 제공자 · ${config.model}`
       : '로컬 예제 · AI 생성 아님 · part fakeModel' },
     publicBudget: { defaults: PUBLIC_BUDGET_DEFAULTS, limits: PUBLIC_BUDGET_LIMITS },
     readOnlyToolIds: READ_ONLY_TOOL_IDS,
