@@ -5,13 +5,15 @@ import { enqueueRun, controlRun, RunError } from './queue.mjs';
 import { assertReadScope, branchHeader } from '../../app/branch-scope.mjs';
 import { assertRecordBranch } from '../../app/branch-state.mjs';
 import { DomainError } from '../../app/errors.mjs';
-import { executionBudgetSchema } from './contracts.ts';
+import { executionBudgetSchema, providerModelIdSchema } from './contracts.ts';
 import { safeRunDetail, safeRunEvent, safeRunSummary } from './public-contract.mjs';
+import { providerConfig } from '../../app/provider-config.mjs';
 
 const runSchema = z.strictObject({
   sceneId: z.string().min(1), instruction: z.string().min(1).max(10_000),
   baseSnapshotId: z.string().min(1),
   feedbackId: z.string().min(1).optional(),
+  model: providerModelIdSchema.optional(),
   budget: executionBudgetSchema,
 });
 
@@ -34,7 +36,12 @@ function requestIdentity(context, input) {
 export function mountRunRoutes(app, { store, worker }) {
   app.post('/api/runs', guarded(async (context) => {
     const input = runSchema.parse(await context.req.json());
-    const run = await enqueueRun(store, { ...input, ...requestIdentity(context, input) });
+    const config = providerConfig();
+    const model = config.mode === 'openai-compatible' ? input.model ?? config.model : null;
+    if (config.mode === 'openai-compatible' && model === null) {
+      throw new RunError('MODEL_REQUIRED', '실행할 모델을 선택하세요.', 422);
+    }
+    const run = await enqueueRun(store, { ...input, ...(model ? { model } : {}), ...requestIdentity(context, input) });
     return context.json(safeRunSummary(run), 202);
   }));
   app.get('/api/runs', guarded(async (context) => {

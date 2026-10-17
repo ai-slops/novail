@@ -33,6 +33,7 @@ export function safeRunSummary(run) {
       actualOutputTokens: run.actualOutputTokens ?? 0,
     },
     ...(run.runtime ? { runtime: run.runtime } : {}),
+    ...(run.model ? { selectedModel: run.model } : {}),
     ...(run.resultRef ? { resultRef: run.resultRef } : {}),
     ...(run.staleBase !== undefined ? { staleBase: Boolean(run.staleBase) } : {}),
     ...(run.error ? { error: safeError(run.error) } : {}),
@@ -106,8 +107,9 @@ export function runtimeInfo() {
     partVersion: '0.1.0',
     mode: configured ? 'openai-compatible' : 'local-demo',
     nonAI: !configured,
-    model: { label: configured ? `OpenAI 호환 제공자 · ${config.model}`
-      : '로컬 예제 · AI 생성 아님 · part fakeModel' },
+    model: { label: configured
+      ? config.model ? `OpenAI 호환 제공자 · ${config.model}` : '실행할 모델을 선택하세요'
+      : '로컬 예제 · AI 생성 아님 · part fakeModel', defaultModel: config.model },
     publicBudget: { defaults: PUBLIC_BUDGET_DEFAULTS, limits: PUBLIC_BUDGET_LIMITS },
     readOnlyToolIds: READ_ONLY_TOOL_IDS,
   });

@@ -59,6 +59,7 @@ export async function enqueueRun(store, input) {
       id: randomUUID(), projectId: state.project.id, branchId: scope.branchId, queueManaged: true,
       state: 'queued', purpose, baseSnapshotId: input.baseSnapshotId,
       ...details, instruction: input.instruction, contextVersion: state.contextVersion ?? 0,
+      ...(input.model ? { model: input.model } : {}),
       budget: executionBudgetSchema.parse(input.budget), reservedCalls: 0, reservedOutputTokens: 0,
       actualOutputTokens: 0, actualKnownTokens: 0,
       createdAt: new Date().toISOString(), cancellationRequested: false,

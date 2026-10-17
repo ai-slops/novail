@@ -9,11 +9,14 @@ import { safeRunEvent } from '../packages/execution/public-contract.mjs';
 test('runtime info exposes the stable part contract without provider configuration', async (t) => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousBase = process.env.OPENAI_BASE_URL;
+  const previousModel = process.env.OPENAI_MODEL;
   process.env.OPENAI_API_KEY = 'runtime-secret';
   process.env.OPENAI_BASE_URL = 'https://provider.invalid/private';
+  process.env.OPENAI_MODEL = '';
   t.after(() => {
     if (previousKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = previousKey;
     if (previousBase === undefined) delete process.env.OPENAI_BASE_URL; else process.env.OPENAI_BASE_URL = previousBase;
+    if (previousModel === undefined) delete process.env.OPENAI_MODEL; else process.env.OPENAI_MODEL = previousModel;
   });
   const { app } = await branchFixture(t);
 
@@ -30,6 +33,7 @@ test('runtime info exposes the stable part contract without provider configurati
   assert.equal(body.partVersion, '0.1.0');
   assert.equal(body.mode, 'openai-compatible');
   assert.equal(body.nonAI, false);
+  assert.deepEqual(body.model, { label: '실행할 모델을 선택하세요', defaultModel: null });
   assert.equal(body.publicBudget.defaults.maxModelCalls, 4);
   assert.equal(JSON.stringify(body).includes('runtime-secret'), false);
   assert.equal(JSON.stringify(body).includes('provider.invalid'), false);
