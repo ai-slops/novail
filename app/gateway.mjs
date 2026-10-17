@@ -23,10 +23,12 @@ const demoRewrite = (scene, instruction) => ({
   usageKnown: false,
 });
 
-export const generateCandidate = async ({ scene, instruction, proposedText, signal, maxOutputTokens = 4_096, plans = [], reviewExcerpts = [] }) => {
+export const generateCandidate = async ({ scene, instruction, proposedText, signal, model, maxOutputTokens = 4_096, plans = [], reviewExcerpts = [] }) => {
   if (proposedText) return { text: proposedText, adapterLabel: "human-provided text", usageKnown: false };
   const config = providerConfig();
   if (config.mode === 'local-demo') return demoRewrite(scene, instruction);
+  const selectedModel = model ?? config.model;
+  if (selectedModel === null) throw new DomainError('MODEL_REQUIRED', '실행할 모델을 선택하세요.', 422);
 
   try {
     const raw = await ky.post(`${config.baseUrl}/chat/completions`, {
@@ -35,7 +37,7 @@ export const generateCandidate = async ({ scene, instruction, proposedText, sign
       retry: 0,
       signal,
       json: {
-        model: config.model,
+        model: selectedModel,
         max_completion_tokens: maxOutputTokens,
         response_format: { type: "json_object" },
         messages: [
@@ -51,7 +53,7 @@ export const generateCandidate = async ({ scene, instruction, proposedText, sign
     const parsedOutput = outputSchema.parse(JSON.parse(parsedResponse.choices[0].message.content));
     return {
       text: parsedOutput.text,
-      adapterLabel: `openai-compatible:${config.model}`,
+      adapterLabel: `openai-compatible:${selectedModel}`,
       outputTokens: parsedResponse.usage?.completion_tokens,
       usageKnown: parsedResponse.usage !== undefined,
     };

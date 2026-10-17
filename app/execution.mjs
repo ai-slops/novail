@@ -25,7 +25,7 @@ export function createApplicationWorker(store) {
       }
       const context = buildGenerationContext(state, run);
       const generated = await generateCandidate({
-        scene: context.scene, instruction: run.instruction, signal,
+        scene: context.scene, instruction: run.instruction, signal, model: run.model,
         maxOutputTokens: Math.max(1, Math.min(4096, run.budget.maxOutputTokens - run.actualOutputTokens)),
         plans: context.plans, reviewExcerpts: context.reviewExcerpts,
       });

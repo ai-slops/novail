@@ -60,10 +60,13 @@ test('configured provider feedback goes through actual HTTP gateway and adopts l
   const base = await store.read();
   const text = base.scenes.find((scene) => scene.id === input.sceneId).text;
   let requestedLimit = 0;
+  let requestedModel = '';
   const provider = createServer(async (request, response) => {
     let body = '';
     for await (const chunk of request) body += chunk;
-    requestedLimit = JSON.parse(body).max_completion_tokens;
+    const parsedBody = JSON.parse(body);
+    requestedLimit = parsedBody.max_completion_tokens;
+    requestedModel = parsedBody.model;
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ text: `${text}\n새 결의.` }) } }], usage: { completion_tokens: 50 } }));
   });
@@ -84,7 +87,7 @@ test('configured provider feedback goes through actual HTTP gateway and adopts l
   const app = createApp({ store, worker });
   const post = (path, body) => app.request(path, { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() }, body: JSON.stringify(body) });
   const feedback = await (await post('/api/feedback', { sceneId: input.sceneId, text: input.instruction, scope: 'scene' })).json();
-  const runResponse = await post('/api/runs', { ...input, feedbackId: feedback.id });
+  const runResponse = await post('/api/runs', { ...input, model: 'selected-feedback-model', feedbackId: feedback.id });
   assert.equal(runResponse.status, 202);
   await worker.tick();
   const state = await store.read();
@@ -92,6 +95,7 @@ test('configured provider feedback goes through actual HTTP gateway and adopts l
   assert.ok(candidate);
   assert.equal(candidate.feedbackId, feedback.id);
   assert.equal(requestedLimit, 4096);
+  assert.equal(requestedModel, 'selected-feedback-model');
   const committed = await post(`/api/candidates/${candidate.id}/commit`, { expectedHead: state.head, hash: candidate.hash });
   assert.equal(committed.status, 200);
   assert.equal((await store.read()).feedback.find((item) => item.id === feedback.id).state, 'applied');
