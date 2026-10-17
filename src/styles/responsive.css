@@ -42,6 +42,8 @@
   .view-header { align-items: flex-start; }
   .board-grid { grid-template-columns: 1fr; }
   .dialog { width: calc(100% - var(--space-6)); }
+  .model-selector-row { grid-template-columns: minmax(0, 1fr); }
+  .model-selector-row .button { width: 100%; }
   .candidate-actions, .dialog footer { flex-direction: column-reverse; }
   .candidate-actions .button, .dialog footer .button { width: 100%; }
   .review-ledger article { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
