@@ -59,16 +59,19 @@ export async function providerFixture(t, transform, options = {}) {
   assert.ok(address && typeof address === 'object');
   const oldKey = process.env.OPENAI_API_KEY;
   const oldBase = process.env.OPENAI_BASE_URL;
+  const oldModel = process.env.OPENAI_MODEL;
   process.env.OPENAI_API_KEY = 'isolated-test-provider';
   process.env.OPENAI_BASE_URL = `http://127.0.0.1:${address.port}`;
+  process.env.OPENAI_MODEL = 'environment-default';
   t.after(() => {
     server.close();
     if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
     if (oldBase === undefined) delete process.env.OPENAI_BASE_URL; else process.env.OPENAI_BASE_URL = oldBase;
+    if (oldModel === undefined) delete process.env.OPENAI_MODEL; else process.env.OPENAI_MODEL = oldModel;
   });
   const state = await readState(fixture.app);
   const input = { baseSnapshotId: state.head, baseWorkspaceHash: workspaceHash(await fixture.store.read()),
-    instruction: '선택과 결과를 함께 보강', sceneIds: options.sceneIds ?? ['scene-1', 'scene-7'],
+    instruction: '선택과 결과를 함께 보강', model: options.model ?? 'selected-model', sceneIds: options.sceneIds ?? ['scene-1', 'scene-7'],
     planIds: options.planIds ?? ['plan-plot'], feedbackIds: [],
     budget: options.budget ?? { maxModelCalls: 2, maxOutputTokens: 2048 } };
   runtimeWorker = createApplicationWorker(fixture.store);

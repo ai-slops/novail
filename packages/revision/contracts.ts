@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { executionBudgetSchema } from '../execution/contracts.ts';
+import { executionBudgetSchema, providerModelIdSchema } from '../execution/contracts.ts';
 
 export const idSchema = z.string().min(1).max(200);
 export const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -71,6 +71,7 @@ export const commitChangeSetSchema = z.strictObject({
 export const deriveSchema = z.strictObject({ changeIds: z.array(idSchema).min(1).max(50) });
 export const repairRunSchema = z.strictObject({
   baseSnapshotId: idSchema, baseWorkspaceHash: hashSchema, instruction: z.string().trim().min(1).max(20_000),
+  model: providerModelIdSchema.optional(),
   sceneIds: z.array(idSchema).max(8), planIds: z.array(idSchema).max(8), feedbackIds: z.array(idSchema).max(50).default([]),
   budget: executionBudgetSchema.default({ maxModelCalls: 4, maxToolDispatches: 8, maxKnownTokens: 64_000,
     maxOutputTokens: 16_000, maxOutputTokensPerInvocation: 4_000, deadlineSeconds: 120 }),

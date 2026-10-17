@@ -40,7 +40,7 @@ function validateSelection(patches, run) {
   }
 }
 
-function providerModel(run, config) {
+function providerModel(run, config, selectedModel) {
   const adapter = createOpenAICompatibleAdapter();
   const base = new URL(config.baseUrl);
   base.pathname = `${base.pathname.replace(/\/$/, '')}/chat/completions`;
@@ -52,7 +52,7 @@ function providerModel(run, config) {
   return {
     profile: {
       id: 'novail-repair', revision: '1', adapterId: adapter.id, transportId: 'part/fetch',
-      authStrategyId: 'bearer', model: config.model, endpoint,
+      authStrategyId: 'bearer', model: selectedModel, endpoint,
       defaults: { stream: true, response_format: { type: 'json_schema',
         json_schema: { name: 'novail_repair', strict: true, schema: outputSchema } },
         max_completion_tokens: run.budget.maxOutputTokensPerInvocation },
@@ -134,7 +134,11 @@ export async function generateRepairWithAgent({ run, job, store, signal }) {
   const pack = freeze(structuredClone(buildRepairPack(run)));
   const config = providerConfig();
   const providerConfigured = config.mode === 'openai-compatible';
-  const model = providerConfigured ? providerModel(run, config) : localModel(pack);
+  const selectedModel = run.model ?? config.model;
+  if (providerConfigured && selectedModel === null) {
+    throw new GenerationError('MODEL_REQUIRED', '실행할 모델을 선택하세요.', { invocationStarted: false, usageManaged: true });
+  }
+  const model = providerConfigured ? providerModel(run, config, selectedModel) : localModel(pack);
   const runtime = { name: 'part', version: '0.1.0', mode: providerConfigured ? 'openai-compatible' : 'local-demo',
     modelLabel: providerConfigured ? `OpenAI 호환 제공자 · ${model.profile.model}` : '로컬 예제 · AI 생성 아님 · part fakeModel' };
   const lease = { run, jobId: job.id, leaseToken: job.leaseToken };

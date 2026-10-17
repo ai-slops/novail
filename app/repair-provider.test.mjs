@@ -8,6 +8,7 @@ test('one provider call repairs exactly the selected scenes and plans while reta
   const { state, run } = await runRepair(fixture);
   assert.equal(fixture.requests.length, 2);
   assert.equal(fixture.requests[0].max_completion_tokens, 2048);
+  assert.equal(fixture.requests[0].model, 'selected-model');
   assert.equal(fixture.requests[0].stream, true);
   assert.equal(fixture.requests[0].response_format.type, 'json_schema');
   assert.equal(fixture.requests[0].response_format.json_schema.strict, true);
@@ -21,12 +22,60 @@ test('one provider call repairs exactly the selected scenes and plans while reta
   assert.deepEqual(fixture.requests[0].tools.map((tool) => tool.function.name), TOOL_IDS);
   assert.equal(fixture.requests[0].tools.every((tool) => /^[a-zA-Z0-9_-]{1,64}$/.test(tool.function.name)), true);
   assert.equal(run.actualOutputTokens, 40);
+  assert.equal(run.model, 'selected-model');
+  assert.equal(run.runtime.modelLabel, 'OpenAI 호환 제공자 · selected-model');
   const proposal = state.changeSets.find((item) => item.id === run.resultRef);
   assert.equal(proposal.entries.filter((entry) => entry.kind === 'scene').length, 2);
   const scene = proposal.entries.find((entry) => entry.artifactId === 'scene-7');
   assert.deepEqual(scene.after.protectedQuotes, fixture.state.scenes.find((item) => item.id === 'scene-7').protectedQuotes);
   assert.equal(scene.after.chapter, 7);
   assert.equal(state.head, fixture.state.head);
+});
+
+test('a configured provider rejects a missing model before reserving or invoking work', async (t) => {
+  const fixture = await providerFixture(t, completePatches);
+  const { model: _model, ...input } = fixture.input;
+  process.env.OPENAI_MODEL = '';
+
+  const response = await command(fixture.app, '/api/repair-runs', input, { branchId: fixture.state.currentBranchId });
+  const body = await response.json();
+  const state = await fixture.store.read();
+
+  assert.equal(response.status, 422);
+  assert.equal(body.error.code, 'MODEL_REQUIRED');
+  assert.equal(fixture.requests.length, 0);
+  assert.equal(state.runs.length, 0);
+  assert.equal(state.jobs.length, 0);
+});
+
+test('an invalid model id is rejected at the HTTP boundary before queueing work', async (t) => {
+  const fixture = await providerFixture(t, completePatches);
+
+  const response = await command(fixture.app, '/api/repair-runs', {
+    ...fixture.input,
+    model: 'x'.repeat(201),
+  }, { branchId: fixture.state.currentBranchId });
+  const state = await fixture.store.read();
+
+  assert.equal(response.status, 400);
+  assert.equal(fixture.requests.length, 0);
+  assert.equal(state.runs.length, 0);
+  assert.equal(state.jobs.length, 0);
+});
+
+test('the queued model remains immutable when the environment default changes before execution', async (t) => {
+  const fixture = await providerFixture(t, completePatches, { model: 'queued-model' });
+  const queued = await command(fixture.app, '/api/repair-runs', fixture.input, { branchId: fixture.state.currentBranchId });
+  assert.equal(queued.status, 202);
+  const queuedRun = await queued.json();
+  assert.equal(queuedRun.selectedModel, 'queued-model');
+  process.env.OPENAI_MODEL = 'later-default';
+
+  await fixture.worker.tick();
+  const run = (await fixture.store.read()).runs.find((item) => item.id === queuedRun.id);
+
+  assert.equal(fixture.requests[0].model, 'queued-model');
+  assert.equal(run.model, 'queued-model');
 });
 
 test('a provider invocation is rejected before transport when the full encoded output ceiling no longer fits', async (t) => {
