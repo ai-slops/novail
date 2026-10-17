@@ -165,6 +165,14 @@ Radii: `--radius-sm: 4px`, `--radius-md: 8px`, `--radius-lg: 12px`. Icons: `--ic
 - **Responsive**: at 1440px active detail and history form a `minmax(0, 1fr) / 280px` list-detail split; at 768px history stacks below detail; at 375px budget fields, scope choices, actions, usage, and event metadata become one column. IDs and model/tool labels wrap anywhere, while event text keeps readable wrapping and never creates horizontal page overflow.
 - **Accessibility**: all budget and scope controls have visible labels, event history is an ordered list with `aria-live=polite` only on the newest status summary, reconnect/error messages use textual status, and every icon action has a label. Runtime color is always paired with state text.
 
+### Provider model selector
+- **Structure**: a shared editorial-field block used only by AI repair composers. It has a visible `실행할 모델 선택` label, catalog select, compact reload action, capability warning, and an inline status/error region. Manual revision mode never mounts it.
+- **Selection**: no first-item guessing. A configured default is preselected only when the catalog contains it and the user has not changed the field. Later catalog/default changes never overwrite a user choice. The selected model participates in unsaved-work guards.
+- **Fallback**: `MODEL_CATALOG_UNSUPPORTED` replaces the select with a labeled model-ID input; this explicit manual value is required. Empty successful catalogs and every other catalog failure remain blocked. API-key rejection uses a fixed Korean key-check message and never exposes provider response text or credentials.
+- **Capability honesty**: catalog IDs are not filtered by name. The selector warns that image-only entries may appear and that the chosen language model must support tool calls, SSE streaming, and strict JSON Schema.
+- **Demo state**: local demo renders a disabled `AI가 아닌 로컬 예제` field, makes no provider-catalog requirement, and sends no model value. No API-key input appears in browser UI.
+- **Responsive and accessibility**: the control/reload cluster wraps to one column at 375px, every target remains at least 44px, long model IDs wrap or remain readable within the field, loading is announced with `role=status`, and blocking errors use `role=alert` without clearing an entered manual ID.
+
 ## 6. Motion & Interaction
 Tokens: `--motion-micro: 120ms ease-out`, `--motion-standard: 220ms cubic-bezier(.2,.8,.2,1)`, `--motion-emphasis: 360ms cubic-bezier(.16,1,.3,1)`. Motion communicates selection, drawer ownership, and completion only. Save/commit confirmation uses a brief opacity transition. Animate only transform and opacity. Under `prefers-reduced-motion: reduce`, all non-essential transitions resolve immediately.
 
