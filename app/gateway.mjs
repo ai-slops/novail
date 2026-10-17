@@ -2,6 +2,7 @@ import ky from "ky";
 import { z } from "zod";
 
 import { DomainError } from "./domain.mjs";
+import { providerConfig } from "./provider-config.mjs";
 
 const outputSchema = z.strictObject({ text: z.string().min(1).max(200_000) });
 const responseSchema = z.looseObject({
@@ -24,18 +25,17 @@ const demoRewrite = (scene, instruction) => ({
 
 export const generateCandidate = async ({ scene, instruction, proposedText, signal, maxOutputTokens = 4_096, plans = [], reviewExcerpts = [] }) => {
   if (proposedText) return { text: proposedText, adapterLabel: "human-provided text", usageKnown: false };
-  if (!process.env.OPENAI_API_KEY) return demoRewrite(scene, instruction);
+  const config = providerConfig();
+  if (config.mode === 'local-demo') return demoRewrite(scene, instruction);
 
-  const baseUrl = (process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1").replace(/\/$/, "");
-  const model = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
   try {
-    const raw = await ky.post(`${baseUrl}/chat/completions`, {
-      headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    const raw = await ky.post(`${config.baseUrl}/chat/completions`, {
+      headers: { authorization: `Bearer ${config.apiKey}` },
       timeout: 20_000,
       retry: 0,
       signal,
       json: {
-        model,
+        model: config.model,
         max_completion_tokens: maxOutputTokens,
         response_format: { type: "json_object" },
         messages: [
@@ -51,7 +51,7 @@ export const generateCandidate = async ({ scene, instruction, proposedText, sign
     const parsedOutput = outputSchema.parse(JSON.parse(parsedResponse.choices[0].message.content));
     return {
       text: parsedOutput.text,
-      adapterLabel: `openai-compatible:${model}`,
+      adapterLabel: `openai-compatible:${config.model}`,
       outputTokens: parsedResponse.usage?.completion_tokens,
       usageKnown: parsedResponse.usage !== undefined,
     };

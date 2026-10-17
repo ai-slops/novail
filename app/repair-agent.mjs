@@ -9,6 +9,7 @@ import { createOpenAICompatibleAdapter } from '@slop-lab/part-plugins/providers/
 import { fakeModel } from '@slop-lab/part-plugins/testing/index.js';
 import { z } from 'zod';
 import { GenerationError } from './errors.mjs';
+import { providerConfig } from './provider-config.mjs';
 import { buildRepairPack } from './repair-input.mjs';
 import { prepareModelAttempt, settleModelAttempt } from '../packages/execution/model-budget.mjs';
 import { appendRuntimeEvent, createProgressRecorder } from '../packages/execution/runtime-events.mjs';
@@ -39,9 +40,9 @@ function validateSelection(patches, run) {
   }
 }
 
-function providerModel(run) {
+function providerModel(run, config) {
   const adapter = createOpenAICompatibleAdapter();
-  const base = new URL(process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1');
+  const base = new URL(config.baseUrl);
   base.pathname = `${base.pathname.replace(/\/$/, '')}/chat/completions`;
   const endpoint = base.toString();
   const outputSchema = { type: 'object', additionalProperties: false, required: ['scenes', 'plans'], properties: {
@@ -51,7 +52,7 @@ function providerModel(run) {
   return {
     profile: {
       id: 'novail-repair', revision: '1', adapterId: adapter.id, transportId: 'part/fetch',
-      authStrategyId: 'bearer', model: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini', endpoint,
+      authStrategyId: 'bearer', model: config.model, endpoint,
       defaults: { stream: true, response_format: { type: 'json_schema',
         json_schema: { name: 'novail_repair', strict: true, schema: outputSchema } },
         max_completion_tokens: run.budget.maxOutputTokensPerInvocation },
@@ -59,7 +60,7 @@ function providerModel(run) {
     },
     adapter,
     transport: createFetchTransport({ allowedOrigins: [base.origin] }),
-    auth: bearerAuth(() => process.env.OPENAI_API_KEY ?? ''),
+    auth: bearerAuth(() => config.apiKey),
   };
 }
 
@@ -131,8 +132,9 @@ async function repairMessages(run) {
 
 export async function generateRepairWithAgent({ run, job, store, signal }) {
   const pack = freeze(structuredClone(buildRepairPack(run)));
-  const providerConfigured = Boolean(process.env.OPENAI_API_KEY);
-  const model = providerConfigured ? providerModel(run) : localModel(pack);
+  const config = providerConfig();
+  const providerConfigured = config.mode === 'openai-compatible';
+  const model = providerConfigured ? providerModel(run, config) : localModel(pack);
   const runtime = { name: 'part', version: '0.1.0', mode: providerConfigured ? 'openai-compatible' : 'local-demo',
     modelLabel: providerConfigured ? `OpenAI 호환 제공자 · ${model.profile.model}` : '로컬 예제 · AI 생성 아님 · part fakeModel' };
   const lease = { run, jobId: job.id, leaseToken: job.leaseToken };
