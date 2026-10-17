@@ -1,13 +1,13 @@
-import { assertSupportedNode, router4uConfig } from './router4u-config.mjs';
-import { checkRouter4u } from './router4u-readiness.mjs';
-import { runPartProbe } from './router4u-part-probe.mjs';
+import { providerConfig } from '../app/provider-config.mjs';
+import { checkProvider } from './provider-readiness.mjs';
+import { runPartProbe } from './provider-part-probe.mjs';
 
-const HELP = `Usage: node scripts/check-router4u.mjs [--generate]
+const HELP = `Usage: node scripts/check-provider.mjs [--generate]
 
-Checks Router4U readiness using only authenticated GET /v1/models and
-GET /v1/capabilities. --generate explicitly opts in to one isolated NOVAIL
-Part run, which can consume provider quota. No OAuth or credentials are read
-from Router4U; configure OPENAI_BASE_URL, OPENAI_API_KEY, and OPENAI_MODEL.
+Checks an OpenAI-compatible provider using only authenticated GET /models.
+--generate explicitly opts in to one isolated NOVAIL Part run, which can
+consume provider quota. Configure OPENAI_BASE_URL, OPENAI_API_KEY, and
+OPENAI_MODEL in .env.
 `;
 
 function parseArguments(arguments_) {
@@ -25,12 +25,11 @@ async function main() {
     process.stdout.write(HELP);
     return;
   }
-  assertSupportedNode();
-  const config = router4uConfig();
-  const readiness = await checkRouter4u(config);
-  process.stdout.write(`READINESS PASS model=${readiness.model}\n`);
-  process.stdout.write(`MODELS available=${readiness.modelIds.join(',')}\n`);
-  process.stdout.write('CAPABILITIES chat=advertised stream=advertised tools=advertised strict_json_schema=UNVERIFIED\n');
+  const config = providerConfig(process.env, { requireApiKey: true });
+  const readiness = await checkProvider(config);
+  process.stdout.write(`PROVIDER_CHECK PASS model=${readiness.model}\n`);
+  process.stdout.write(`MODEL_CATALOG ${readiness.catalog.toUpperCase()}${readiness.modelIds.length ? ` models=${readiness.modelIds.join(',')}` : ''}\n`);
+  process.stdout.write('GENERATION stream=UNVERIFIED tools=UNVERIFIED strict_json_schema=UNVERIFIED\n');
   if (!options.generate) {
     process.stdout.write('GENERATION skipped (use --generate to opt in; may consume provider quota)\n');
     return;
@@ -46,7 +45,7 @@ try {
   await main();
 } catch (error) {
   const code = error instanceof Error && 'code' in error ? error.code : 'CHECK_FAILED';
-  const message = error instanceof Error ? error.message : 'Router4U check failed.';
+  const message = error instanceof Error ? error.message : 'Provider check failed.';
   process.stderr.write(`${code}: ${message}\n`);
   process.exitCode = 1;
 }

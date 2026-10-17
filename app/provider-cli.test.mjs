@@ -6,7 +6,7 @@ import test from 'node:test';
 import { createSeed } from './seed.mjs';
 
 const node = process.execPath;
-const script = new URL('../scripts/check-router4u.mjs', import.meta.url);
+const script = new URL('../scripts/check-provider.mjs', import.meta.url);
 
 async function runCli(arguments_, environment = {}) {
   const child = spawn(node, [script.pathname, ...arguments_], {
@@ -37,27 +37,12 @@ test('rejects unknown arguments before making a request', async () => {
   assert.equal(result.stdout, '');
 });
 
-test('requires an explicit project key and selected model', async () => {
+test('requires an explicit API key before contacting a provider', async () => {
   const result = await runCli([]);
 
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /CONFIGURATION_MISSING/);
   assert.doesNotMatch(result.stderr, /Bearer/);
-});
-
-test('Router4U start wrapper fails closed before importing the server', async () => {
-  const startScript = new URL('../scripts/start-router4u.mjs', import.meta.url);
-  const child = spawn(node, [startScript.pathname], {
-    cwd: new URL('..', import.meta.url),
-    env: { ...process.env, OPENAI_API_KEY: '', OPENAI_MODEL: '', OPENAI_BASE_URL: 'http://127.0.0.1:9470/v1' },
-  });
-  let stderr = '';
-  child.stderr.setEncoding('utf8').on('data', (chunk) => { stderr += chunk; });
-  const [code] = await once(child, 'close');
-
-  assert.notEqual(code, 0);
-  assert.match(stderr, /CONFIGURATION_MISSING/);
-  assert.doesNotMatch(stderr, /listening|local-demo/);
 });
 
 test('runs the real Part tool loop only with explicit generate opt-in', async (t) => {
@@ -66,11 +51,6 @@ test('runs the real Part tool loop only with explicit generate opt-in', async (t
     response.setHeader('content-type', request.method === 'POST' ? 'text/event-stream' : 'application/json');
     if (request.url === '/v1/models') {
       response.end(JSON.stringify({ object: 'list', data: [{ id: 'codex-model' }] }));
-      return;
-    }
-    if (request.url === '/v1/capabilities') {
-      response.end(JSON.stringify({ routes: [{ id: 'personal', models: ['codex-model'], protocols: ['chat'], streaming: true,
-        tool_representation: 'native_protocol_passthrough' }] }));
       return;
     }
     let raw = '';
@@ -104,15 +84,15 @@ test('runs the real Part tool loop only with explicit generate opt-in', async (t
   assert.ok(address && typeof address === 'object');
 
   const result = await runCli(['--generate'], {
-    OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`, OPENAI_API_KEY: 'project-secret', OPENAI_MODEL: 'codex-model',
+    OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`, OPENAI_API_KEY: 'provider-secret', OPENAI_MODEL: 'codex-model',
   });
 
   assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /READINESS PASS/);
+  assert.match(result.stdout, /PROVIDER_CHECK PASS/);
   assert.match(result.stdout, /PART_INTEGRATION PASS/);
   assert.match(result.stdout, /TOOLS exercised=3/);
   assert.match(result.stdout, /HEAD unchanged/);
-  assert.doesNotMatch(`${result.stdout}${result.stderr}`, /project-secret|Bearer|푸른 인장의 밤/);
+  assert.doesNotMatch(`${result.stdout}${result.stderr}`, /provider-secret|Bearer|푸른 인장의 밤/);
   assert.equal(chatCalls, 2);
 });
 
@@ -128,11 +108,6 @@ test('does not claim tool compatibility when the provider skips tool calls', asy
       response.end(JSON.stringify({ object: 'list', data: [{ id: 'codex-model' }] }));
       return;
     }
-    if (_request.url === '/v1/capabilities') {
-      response.end(JSON.stringify({ routes: [{ id: 'personal', models: ['codex-model'], protocols: ['chat'], streaming: true,
-        tool_representation: 'native_protocol_passthrough' }] }));
-      return;
-    }
     response.end(`data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: JSON.stringify(patches) }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 } })}\n\ndata: [DONE]\n\n`);
   });
@@ -143,7 +118,7 @@ test('does not claim tool compatibility when the provider skips tool calls', asy
   assert.ok(address && typeof address === 'object');
 
   const result = await runCli(['--generate'], {
-    OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`, OPENAI_API_KEY: 'project-secret', OPENAI_MODEL: 'codex-model',
+    OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`, OPENAI_API_KEY: 'provider-secret', OPENAI_MODEL: 'codex-model',
   });
 
   assert.notEqual(result.code, 0);
