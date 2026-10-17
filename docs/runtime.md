@@ -44,6 +44,8 @@ OpenAI 호환 변형 중 일부는 이 조합이나 usage 보고를 지원하지
 
 키가 없으면 Part `fakeModel`을 사용하는 결정적 `local-demo`가 실행됩니다. UI와 `/api/runtime-info`는 이를 **AI가 아닌 로컬 예제**로 표시합니다. 이 모드는 실제 모델 품질 검증이 아닙니다.
 
+서버와 `provider:check`는 같은 `.env`와 기본값(`https://api.openai.com/v1`, `gpt-4.1-mini`)을 사용합니다. 키가 설정된 상태의 잘못된 base URL이나 명시적으로 빈 model은 시작 전에 거절합니다. `pnpm provider:check`는 표준 `GET /models`의 인증·catalog 접근만 확인하고 생성 기능을 추정하지 않습니다. 실제 SSE, 도구 loop와 strict JSON 결과 경로는 quota 사용에 동의한 `pnpm provider:check --generate`에서만 확인합니다.
+
 ## 예산과 사용량
 
 Run은 `maxModelCalls`, `maxToolDispatches`, `maxKnownTokens`, `maxOutputTokens`, `maxOutputTokensPerInvocation`, `deadlineSeconds`를 가집니다. 기본값은 각각 `4`, `8`, `64,000`, `16,000`, `4,000`, `120`이며 UI는 서버가 공개한 허용 범위 안에서 수정합니다.

@@ -38,7 +38,15 @@ OPENAI_MODEL=gpt-4.1-mini
 
 현재 제공자 설정은 서버 시작 시 읽는 환경 변수로만 관리합니다. 웹 UI 안에서 키·모델·base URL을 저장하거나 바꾸는 설정 화면은 아직 없습니다. 환경 변수를 설정해 서버를 시작하면 기존 웹 UI에서 피드백 입력, 모델 Run, 결과 검토, 수동 평가와 채택 결정을 이어갈 수 있습니다. 브라우저에는 제공자 구성 여부와 실행 상태만 노출되며 비밀 키는 전송하지 않습니다.
 
-개인 Codex 계정을 Router4U의 프로젝트 키로 연결할 때는 [`docs/router4u.md`](docs/router4u.md)의 로그인, 모델 선택, 읽기 전용 준비 검사, 명시적 생성 probe와 개발 서버 시작 절차를 따르세요. 준비 검사 통과는 실제 추론 성공이나 모델 품질 보장이 아닙니다.
+설정 후 표준 모델 목록 조회와, 명시적으로 동의한 경우에만 실제 Part 도구 루프를 확인할 수 있습니다.
+
+```sh
+pnpm provider:check
+pnpm provider:check --generate # 실제 호출과 quota를 사용할 수 있음
+pnpm start
+```
+
+기본 검사는 인증된 `GET /models`만 사용합니다. 모델 목록 API가 없는 호환 프록시는 `MODEL_CATALOG UNAVAILABLE`로 정직하게 표시하며, 생성·스트리밍·도구·strict schema 지원을 추정하지 않습니다. `--generate`만 격리된 NOVAIL Part run으로 실제 SSE, 읽기 전용 도구 loop와 strict JSON 결과 경로를 확인합니다. 개인 Codex 계정을 Router4U로 연결할 때는 [`docs/router4u.md`](docs/router4u.md)의 게이트웨이 설치·로그인·프로젝트 키 절차를 따르되 NOVAIL에는 같은 `.env`와 일반 명령을 사용하세요.
 
 ### 개발
 
