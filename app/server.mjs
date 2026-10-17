@@ -3,7 +3,9 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./api.mjs";
 import { createApplicationWorker } from "./execution.mjs";
 import { createStore } from "./store.mjs";
+import { providerConfig } from "./provider-config.mjs";
 
+providerConfig();
 const store = createStore();
 await store.initialize();
 
