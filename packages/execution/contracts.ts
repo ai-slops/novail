@@ -83,8 +83,19 @@ export const providerModelsSchema = z.strictObject({
   models: z.array(z.strictObject({ id: providerModelIdSchema })),
 });
 
-const publicErrorSchema = z.strictObject({ code: z.string(), message: z.string() });
+export const failureDiagnosticsSchema = z.strictObject({
+  stage: z.enum(['provider_transport', 'provider_http', 'provider_response', 'output_json', 'output_shape', 'output_scope', 'output_truncated']),
+  providerStatus: z.number().int().min(100).max(599).optional(),
+  providerCode: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/u).optional(),
+  requestId: z.string().regex(/^[a-zA-Z0-9._:/-]{1,200}$/u).optional(),
+  retryable: z.boolean(),
+  reasonCode: z.enum(['authentication_failed', 'policy_denied', 'unsupported_capability', 'unsupported_parameter',
+    'quota_exceeded', 'upstream_unavailable', 'provider_http_error', 'network_failure', 'provider_response_invalid',
+    'invalid_json', 'invalid_shape', 'scope_mismatch', 'output_truncated']),
+});
+const publicErrorSchema = z.strictObject({ code: z.string(), message: z.string(), diagnostics: failureDiagnosticsSchema.optional() });
 const publicUsageSchema = z.strictObject({
+  known: z.boolean(),
   reservedModelCalls: z.number().int().nonnegative(),
   reservedOutputTokens: z.number().int().nonnegative(),
   actualKnownTokens: z.number().int().nonnegative(),

@@ -1,5 +1,5 @@
 import { LEGACY_READ_ONLY_TOOL_IDS, PUBLIC_BUDGET_DEFAULTS, PUBLIC_BUDGET_LIMITS, PUBLIC_RUNTIME_EVENT_TYPES,
-  READ_ONLY_TOOL_IDS, runtimeInfoSchema, safeJobSummarySchema, safeRunDetailSchema,
+  READ_ONLY_TOOL_IDS, failureDiagnosticsSchema, runtimeInfoSchema, safeJobSummarySchema, safeRunDetailSchema,
   safeRunSummarySchema } from './contracts.ts';
 import { providerConfig } from '../../app/provider-config.mjs';
 
@@ -10,10 +10,13 @@ const legacyEventTypes = new Set([
 const runtimeEventTypes = new Set(PUBLIC_RUNTIME_EVENT_TYPES);
 const currentToolIdByLegacyId = new Map(LEGACY_READ_ONLY_TOOL_IDS.map((id, index) => [id, READ_ONLY_TOOL_IDS[index]]));
 
-const safeError = (error) => error && typeof error === 'object'
-  ? { code: typeof error.code === 'string' ? error.code : 'GENERATION_FAILED',
-      message: typeof error.message === 'string' ? error.message : '생성에 실패했습니다.' }
-  : undefined;
+const safeError = (error) => {
+  if (!error || typeof error !== 'object') return undefined;
+  const diagnostics = failureDiagnosticsSchema.safeParse(error.diagnostics);
+  return { code: typeof error.code === 'string' ? error.code : 'GENERATION_FAILED',
+    message: typeof error.message === 'string' ? error.message : '생성에 실패했습니다.',
+    ...(diagnostics.success ? { diagnostics: diagnostics.data } : {}) };
+};
 
 export function safeRunSummary(run) {
   return safeRunSummarySchema.parse({
@@ -27,6 +30,7 @@ export function safeRunSummary(run) {
     cancellationRequested: Boolean(run.cancellationRequested),
     budget: run.budget,
     usage: {
+      known: run.usageKnown !== false,
       reservedModelCalls: run.reservedCalls ?? 0,
       reservedOutputTokens: run.reservedOutputTokens ?? 0,
       actualKnownTokens: run.actualKnownTokens ?? run.actualOutputTokens ?? 0,
