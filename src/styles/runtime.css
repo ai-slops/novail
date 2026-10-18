@@ -66,8 +66,26 @@
 .runtime-event-empty p, .runtime-detail-empty p { margin: 0; font-size: var(--type-small); }
 .runtime-detail > footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-top: 1px solid var(--rule); color: var(--ink-faint); font-size: var(--type-caption); }
 .runtime-detail > footer > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.runtime-error { display: flex; gap: var(--space-2); margin: var(--space-4); padding: var(--space-3); background: var(--amber-wash); color: var(--danger); }
-.runtime-error span { display: grid; gap: var(--space-1); font-size: var(--type-small); }
+.runtime-diagnostics { margin: var(--space-4); border: 1px solid var(--rule-strong); border-inline-start: var(--space-1) solid var(--danger); background: var(--paper-inset); }
+.runtime-diagnostics > header { display: flex; gap: var(--space-3); padding: var(--space-4); border-bottom: 1px solid var(--rule); }
+.runtime-diagnostics-icon { width: var(--space-8); height: var(--space-8); display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: var(--amber-wash); color: var(--danger); }
+.runtime-diagnostics h4 { margin: var(--space-1) 0; font-size: var(--type-h2); }
+.runtime-diagnostics header p:last-child { display: grid; gap: var(--space-1); margin: 0; color: var(--ink-soft); font-size: var(--type-small); line-height: 1.6; }
+.runtime-diagnostics header strong { color: var(--danger); }
+.runtime-diagnostics dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.runtime-diagnostics dl > div { min-width: 0; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--rule); }
+.runtime-diagnostics dl > div:nth-child(odd) { border-inline-end: 1px solid var(--rule); }
+.runtime-diagnostics dt { color: var(--ink-faint); font-size: var(--type-caption); font-weight: 700; }
+.runtime-diagnostics dd { display: grid; gap: var(--space-1); margin: var(--space-1) 0 0; color: var(--ink); font-size: var(--type-small); font-weight: 700; overflow-wrap: anywhere; }
+.runtime-diagnostics code { color: var(--ink-soft); font-size: var(--type-caption); overflow-wrap: anywhere; }
+.runtime-diagnostics-legacy, .runtime-retry-guidance { margin: 0; padding: var(--space-3) var(--space-4); color: var(--ink-soft); font-size: var(--type-small); line-height: 1.6; }
+.runtime-diagnostics-legacy { border-bottom: 1px solid var(--rule); }
+.runtime-retry-guidance { background: var(--amber-wash); }
+.runtime-diagnostics details { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--rule); }
+.runtime-diagnostics summary { min-height: 44px; display: flex; align-items: center; color: var(--teal); font-size: var(--type-small); font-weight: 700; cursor: pointer; }
+.runtime-diagnostics pre { max-height: var(--measure-preview); margin: 0 0 var(--space-3); padding: var(--space-3); overflow: auto; background: var(--nav); color: var(--nav-text); font-size: var(--type-caption); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.runtime-diagnostics > footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--rule); }
+.runtime-diagnostics > footer p { margin: 0; color: var(--ink-faint); font-size: var(--type-caption); line-height: 1.5; }
 .runtime-load-error { max-width: var(--measure-ledger); margin: 0 auto var(--space-4); padding: var(--space-4); border: 1px solid var(--danger); background: var(--paper); }
 .runtime-load-error p { margin: 0 0 var(--space-3); color: var(--danger); }
 
@@ -85,4 +103,8 @@
   .runtime-usage span { border-inline-end: 0; border-bottom: 1px solid var(--rule); }
   .runtime-events li { grid-template-columns: var(--space-8) minmax(0, 1fr); }
   .runtime-events time { grid-column: 2; }
+  .runtime-diagnostics dl { grid-template-columns: minmax(0, 1fr); }
+  .runtime-diagnostics dl > div:nth-child(odd) { border-inline-end: 0; }
+  .runtime-diagnostics > footer { align-items: stretch; flex-direction: column; }
+  .runtime-diagnostics > footer .button { width: 100%; }
 }

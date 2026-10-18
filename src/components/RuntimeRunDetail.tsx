@@ -1,8 +1,9 @@
-import { AlertTriangle, Bot, CheckCircle2, CircleStop, Clock3, ExternalLink, LoaderCircle, RotateCw, TerminalSquare, Wrench } from "lucide-react"
+import { Bot, CheckCircle2, CircleStop, Clock3, ExternalLink, LoaderCircle, RotateCw, TerminalSquare, Wrench } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { PublicRuntimeEvent, SafeRunDetail, SafeRunSummary } from "../../packages/execution/contracts.ts"
 import { ApiError, cancelRuntimeRun, getRuntimeRun, streamRuntimeEvents } from "../api"
 import { isTerminalRunState, mergeRuntimeEvent, shouldStreamRuntimeEvents } from "../runtime-events"
+import { RunFailureDiagnostics } from "./RunFailureDiagnostics"
 
 type Props = Readonly<{
   run: SafeRunSummary
@@ -83,10 +84,10 @@ export function RuntimeRunDetail(props: Props) {
   }
   return <section className="runtime-detail" aria-labelledby="runtime-detail-title">
     <header><div><p className="overline">PUBLIC RUNTIME TRACE</p><h3 id="runtime-detail-title">{stateLabels[summary.state] ?? summary.state}</h3><code>{summary.id}</code>{summary.selectedModel ? <small className="runtime-selected-model">선택 모델 · {summary.selectedModel}</small> : null}{summary.runtime ? <small className="runtime-provenance">실행 출처 · {summary.runtime.name} {summary.runtime.version} · {summary.runtime.mode} · {summary.runtime.modelLabel}</small> : null}</div><span className={`runtime-connection ${connection}`}>{connection === "live" ? <><LoaderCircle className="spin" /> 실시간 연결</> : connection === "reconnecting" ? <><RotateCw className="spin" /> 다시 연결 중</> : <><Clock3 /> 기록됨</>}</span></header>
-    <div className="runtime-usage" aria-label="실행 사용량"><span><small>예약 호출</small><strong>{summary.usage.reservedModelCalls}</strong></span><span><small>예약 출력</small><strong>{summary.usage.reservedOutputTokens.toLocaleString("ko-KR")}</strong></span><span><small>입출력 집계</small><strong>{summary.usage.actualKnownTokens.toLocaleString("ko-KR")}</strong></span><span><small>출력 집계</small><strong>{summary.usage.actualOutputTokens.toLocaleString("ko-KR")}</strong></span></div>
-    <p className="view-description">제공자 보고값과 보수적 추정치를 포함합니다. 사용량 미보고 호출은 예약 출력 한도로 집계합니다.</p>
+    <div className="runtime-usage" aria-label="실행 사용량"><span><small>예약 호출</small><strong>{summary.usage.reservedModelCalls}</strong></span><span><small>예약 출력</small><strong>{summary.usage.reservedOutputTokens.toLocaleString("ko-KR")}</strong></span><span><small>입출력 집계</small><strong>{summary.usage.known ? summary.usage.actualKnownTokens.toLocaleString("ko-KR") : "알 수 없음"}</strong></span><span><small>출력 집계</small><strong>{summary.usage.known ? summary.usage.actualOutputTokens.toLocaleString("ko-KR") : "알 수 없음"}</strong></span></div>
+    <p className="view-description">{summary.usage.known ? "제공자 보고값과 보수적 추정치를 포함합니다." : "제공자가 사용량을 보고하지 않아 실제 토큰 수를 알 수 없습니다. 예약 한도는 알려진 값으로 유지됩니다."}</p>
     <EventLedger events={events} />
-    {summary.error ? <p className="runtime-error" role="alert"><AlertTriangle /> <span><strong>{summary.error.code}</strong>{summary.error.message}</span></p> : null}
+    {summary.error ? <RunFailureDiagnostics run={summary} /> : null}
     {error ? <p className="dialog-error" role="alert">{error}</p> : null}
     <footer><span>{new Date(summary.createdAt).toLocaleString("ko-KR")}</span><div>{!isTerminalRunState(summary.state) ? <button className="button quiet" type="button" disabled={cancelling} onClick={() => void cancel()}><CircleStop /> {cancelling ? "취소 요청 중" : "실행 취소"}</button> : null}{summary.resultRef ? <button className="button primary" type="button" onClick={() => props.onOpenResult(summary.resultRef ?? "")}><ExternalLink /> 결과 검토 열기</button> : null}</div></footer>
   </section>
