@@ -4,6 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono } from 'hono';
+import { GenerationError } from '../../app/errors.mjs';
 import { FileStore } from '../../app/store.mjs';
 import { createWorker } from './worker.mjs';
 import { mountRunRoutes } from './routes.mjs';
@@ -77,4 +78,23 @@ test('changed payload cannot reuse run idempotency key', async (t) => {
   const { store, input } = await fixture(t);
   await enqueueRun(store, { ...input, requestKey: 'same', requestHash: 'first' });
   await assert.rejects(enqueueRun(store, { ...input, requestKey: 'same', requestHash: 'second' }), { code: 'IDEMPOTENCY_CONFLICT' });
+});
+
+test('worker rejects non-allowlisted generation diagnostics before persistence and logging', async (t) => {
+  const { store, input } = await fixture(t);
+  const run = await enqueueRun(store, input);
+  const calls = [];
+  const originalError = console.error;
+  console.error = (...args) => { calls.push(args); };
+  t.after(() => { console.error = originalError; });
+  const worker = createWorker({ store, execute: async () => {
+    throw new GenerationError('PROVIDER_FAILURE', '생성 실패', { invocationStarted: true, usageManaged: true,
+      diagnostics: { stage: 'provider_http', retryable: false, reasonCode: 'provider_http_error', privatePayload: 'secret' } });
+  }, finalize: () => ({ id: 'discard' }) });
+
+  await worker.tick();
+  const failed = (await store.read()).runs.find((item) => item.id === run.id);
+
+  assert.equal(failed.error.diagnostics, undefined);
+  assert.equal(JSON.stringify(calls).includes('secret'), false);
 });

@@ -12,5 +12,6 @@ export class GenerationError extends DomainError {
     this.outputTokens = evidence.outputTokens;
     this.invocationStarted = evidence.invocationStarted;
     this.usageManaged = evidence.usageManaged ?? false;
+    this.diagnostics = evidence.diagnostics;
   }
 }

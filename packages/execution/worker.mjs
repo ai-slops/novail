@@ -1,6 +1,7 @@
 import { claimJob, completeJob } from './queue.mjs';
 import { GenerationError } from '../../app/errors.mjs';
 import { heartbeatJob } from './model-budget.mjs';
+import { failureDiagnosticsSchema } from './contracts.ts';
 
 export function createWorker({ store, execute, finalize }) {
   let busy = false;
@@ -39,13 +40,19 @@ export function createWorker({ store, execute, finalize }) {
     } catch (error) {
       if (!claim) throw error;
       const reportedTokens = payload?.outputTokens ?? (error instanceof GenerationError ? error.outputTokens : undefined);
+      const parsedDiagnostics = failureDiagnosticsSchema.safeParse(
+        error instanceof GenerationError ? error.diagnostics : undefined,
+      );
+      const diagnostics = parsedDiagnostics.success ? parsedDiagnostics.data : undefined;
       await completeJob(store, {
         jobId: claim.job.id, leaseToken: claim.job.leaseToken,
-        error: { code: error instanceof Error && 'code' in error ? error.code : 'GENERATION_FAILED', message: error instanceof Error ? error.message : '생성 실패' },
+        error: { code: error instanceof Error && 'code' in error ? error.code : 'GENERATION_FAILED',
+          message: error instanceof Error ? error.message : '생성 실패', ...(diagnostics ? { diagnostics } : {}) },
         outputTokens: reportedTokens ?? 0, usageKnown: typeof reportedTokens === 'number',
         usageManaged: error instanceof GenerationError && error.usageManaged,
         releaseReservation: error instanceof GenerationError && !error.invocationStarted,
       });
+      if (diagnostics) console.error('worker.generation_failed', JSON.stringify({ runId: claim.run.id, ...diagnostics }));
     } finally {
       clearInterval(heartbeat);
       if (claim) active.delete(claim.run.id);
