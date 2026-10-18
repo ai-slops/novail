@@ -36,6 +36,19 @@ test('SSE decoder skips private lifecycle frames before public runtime history',
 
   // Then: only the public runtime event reaches the UI ledger
   assert.deepEqual(decoded.events, [event]);
+  assert.equal(decoded.summaryRefreshRequested, false);
+});
+
+test('private failed lifecycle frame requests a durable summary refresh without exposing its body', () => {
+  // Given: a private provider failure frame containing details that must not enter the public ledger
+  const frame = 'event: run.failed\ndata: {"type":"run.failed","details":{"rawProviderBody":"secret"}}\n\n';
+
+  // When: the browser decodes the lifecycle frame
+  const decoded = decodeRuntimeEventChunk('', frame);
+
+  // Then: no private payload escapes and the caller is told to reload the safe run summary
+  assert.deepEqual(decoded.events, []);
+  assert.equal(decoded.summaryRefreshRequested, true);
 });
 
 test('event merge rejects replayed IDs while preserving sequence order', () => {

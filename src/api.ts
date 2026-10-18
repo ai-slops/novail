@@ -205,6 +205,7 @@ export async function streamRuntimeEvents(options: RuntimeStreamOptions): Promis
       const decoded = decodeRuntimeEventChunk(remainder, decoder.decode(chunk.value, { stream: true }))
       remainder = decoded.remainder
       for (const event of decoded.events) options.onEvent(event)
+      if (decoded.summaryRefreshRequested) return
     }
   } catch (error: unknown) {
     if (options.signal.aborted && error instanceof Error && error.name === "AbortError") return
