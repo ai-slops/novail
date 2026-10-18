@@ -23,7 +23,8 @@ export function mountRepairRoutes(app, { store }) {
     }
     const requestKey = z.uuid().parse(context.req.header('Idempotency-Key'));
     const requestHash = createHash('sha256').update(`${context.req.path}\n${JSON.stringify(input)}`).digest('hex');
-    const run = await enqueueRun(store, { ...input, ...(model ? { model } : {}), purpose: 'repair_bundle', branchId: context.req.header(branchHeader), requestKey, requestHash });
+    const run = await enqueueRun(store, { ...input, ...(model ? { model, providerApi: config.api } : {}),
+      purpose: 'repair_bundle', branchId: context.req.header(branchHeader), requestKey, requestHash });
     return context.json(safeRunSummary(run), 202);
   });
 }

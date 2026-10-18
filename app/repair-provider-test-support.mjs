@@ -20,6 +20,47 @@ export async function providerFixture(t, transform, options = {}) {
     for await (const chunk of request) raw += chunk;
     const body = JSON.parse(raw);
     requests.push(body);
+    if (options.httpFailure) {
+      response.writeHead(options.httpFailure.status, {
+        'content-type': 'application/json',
+        'x-request-id': options.httpFailure.requestId,
+      });
+      response.end(JSON.stringify({ error: {
+        code: options.httpFailure.code,
+        type: options.httpFailure.type,
+        message: options.httpFailure.privateMessage,
+      } }));
+      return;
+    }
+    if (options.api === 'responses') {
+      const calls = new Map(body.input.filter((item) => item.type === 'function_call')
+        .map((call) => [call.call_id, call.name]));
+      const values = Object.fromEntries(body.input.filter((item) => item.type === 'function_call_output')
+        .map((item) => [calls.get(item.call_id), JSON.parse(item.output)]));
+      const requestScope = JSON.parse(body.input.find((item) => item.role === 'user').content);
+      const hasToolResults = Object.keys(values).length > 0;
+      const output = hasToolResults
+        ? [{ id: `message-${requests.length}`, type: 'message', role: 'assistant', status: 'completed', content: [{
+          type: 'output_text', text: JSON.stringify(await transform({ ...values.novail_read_readonly_context,
+            scenes: values.novail_read_selected_scenes, plans: values.novail_read_selected_plans,
+            instruction: requestScope.instruction })), annotations: [], logprobs: [],
+        }] }]
+        : TOOL_IDS.map((name, index) => ({ id: `function-${index}`, type: 'function_call', status: 'completed',
+          call_id: `call-${index}`, name, arguments: '{}' }));
+      const completionTokens = hasToolResults ? options.finalCompletionTokens ?? 40 : options.firstCompletionTokens ?? 0;
+      const promptTokens = hasToolResults ? options.finalPromptTokens ?? 30 : 10;
+      const envelope = { id: `response-${requests.length}`, object: 'response', status: 'completed', error: null,
+        incomplete_details: null, output, usage: { input_tokens: promptTokens, output_tokens: completionTokens,
+          total_tokens: promptTokens + completionTokens } };
+      response.writeHead(200, { 'content-type': 'text/event-stream' });
+      const metadata = options.responseMetadata
+        ? `event: response.metadata\ndata: ${JSON.stringify({ type: 'response.metadata', sequence_number: 0,
+          response_id: envelope.id, metadata: { openai_verification_recommendation: [] } })}\n\n`
+        : '';
+      response.end(`${metadata}event: response.completed\ndata: ${JSON.stringify({ type: 'response.completed',
+        sequence_number: options.responseMetadata ? 1 : 0, response: envelope })}\n\ndata: [DONE]\n\n`);
+      return;
+    }
     const invalidTool = body.tools?.find((tool) => !/^[a-zA-Z0-9_-]{1,64}$/.test(tool.function.name));
     const responseSchema = JSON.stringify(body.response_format?.json_schema?.schema);
     if (invalidTool || responseSchema.includes('prefixItems') || responseSchema.includes('"items":false')) {
@@ -60,14 +101,17 @@ export async function providerFixture(t, transform, options = {}) {
   const oldKey = process.env.OPENAI_API_KEY;
   const oldBase = process.env.OPENAI_BASE_URL;
   const oldModel = process.env.OPENAI_MODEL;
+  const oldApi = process.env.OPENAI_API;
   process.env.OPENAI_API_KEY = 'isolated-test-provider';
   process.env.OPENAI_BASE_URL = `http://127.0.0.1:${address.port}`;
   process.env.OPENAI_MODEL = 'environment-default';
+  if (options.api === undefined) delete process.env.OPENAI_API; else process.env.OPENAI_API = options.api;
   t.after(() => {
     server.close();
     if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
     if (oldBase === undefined) delete process.env.OPENAI_BASE_URL; else process.env.OPENAI_BASE_URL = oldBase;
     if (oldModel === undefined) delete process.env.OPENAI_MODEL; else process.env.OPENAI_MODEL = oldModel;
+    if (oldApi === undefined) delete process.env.OPENAI_API; else process.env.OPENAI_API = oldApi;
   });
   const state = await readState(fixture.app);
   const input = { baseSnapshotId: state.head, baseWorkspaceHash: workspaceHash(await fixture.store.read()),

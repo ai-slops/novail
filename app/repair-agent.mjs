@@ -1,5 +1,5 @@
 import { createBoundary } from '@slop-lab/part/runtime/boundary.js';
-import { bearerAuth, createFetchTransport } from '@slop-lab/part/model/index.js';
+import { bearerAuth } from '@slop-lab/part/model/index.js';
 import { fail, freeze, jsonSchema, ok, schema } from '@slop-lab/part/contracts/index.js';
 import { messageItem } from '@slop-lab/part/context/index.js';
 import { functionTool } from '@slop-lab/part/tools.js';
@@ -9,6 +9,8 @@ import { createOpenAICompatibleAdapter } from '@slop-lab/part-plugins/providers/
 import { fakeModel } from '@slop-lab/part-plugins/testing/index.js';
 import { z } from 'zod';
 import { GenerationError } from './errors.mjs';
+import { createDiagnosticTransport, diagnosticMessage } from './provider-diagnostics.mjs';
+import { createCompatibleOpenAIResponsesAdapter } from './openai-responses-compat.mjs';
 import { providerConfig } from './provider-config.mjs';
 import { buildRepairPack } from './repair-input.mjs';
 import { prepareModelAttempt, settleModelAttempt } from '../packages/execution/model-budget.mjs';
@@ -35,15 +37,17 @@ function validateSelection(patches, run) {
     const returned = new Set(items.map((item) => item.id));
     if (returned.size !== items.length || returned.size !== ids.length || ids.some((id) => !returned.has(id))) {
       throw new GenerationError('MODEL_SCOPE_MISMATCH', '제공자 출력의 수정 대상이 승인된 실행 범위와 다릅니다.',
-        { invocationStarted: true, usageManaged: true });
+        { invocationStarted: true, usageManaged: true,
+          diagnostics: { stage: 'output_scope', retryable: false, reasonCode: 'scope_mismatch' } });
     }
   }
 }
 
-function providerModel(run, config, selectedModel) {
-  const adapter = createOpenAICompatibleAdapter();
+function providerModel(run, config, selectedModel, diagnostics) {
+  const responses = (run.providerApi ?? config.api) === 'responses';
+  const adapter = responses ? createCompatibleOpenAIResponsesAdapter() : createOpenAICompatibleAdapter();
   const base = new URL(config.baseUrl);
-  base.pathname = `${base.pathname.replace(/\/$/, '')}/chat/completions`;
+  base.pathname = `${base.pathname.replace(/\/$/, '')}/${responses ? 'responses' : 'chat/completions'}`;
   const endpoint = base.toString();
   const outputSchema = { type: 'object', additionalProperties: false, required: ['scenes', 'plans'], properties: {
     scenes: scopedOutputArray(run.sceneIds, 'text', 200_000),
@@ -53,13 +57,16 @@ function providerModel(run, config, selectedModel) {
     profile: {
       id: 'novail-repair', revision: '1', adapterId: adapter.id, transportId: 'part/fetch',
       authStrategyId: 'bearer', model: selectedModel, endpoint,
-      defaults: { stream: true, response_format: { type: 'json_schema',
-        json_schema: { name: 'novail_repair', strict: true, schema: outputSchema } },
-        max_completion_tokens: run.budget.maxOutputTokensPerInvocation },
+      defaults: responses
+        ? { stream: true, text: { format: { type: 'json_schema', name: 'novail_repair', strict: true,
+          schema: outputSchema } }, max_output_tokens: run.budget.maxOutputTokensPerInvocation }
+        : { stream: true, response_format: { type: 'json_schema',
+          json_schema: { name: 'novail_repair', strict: true, schema: outputSchema } },
+          max_completion_tokens: run.budget.maxOutputTokensPerInvocation },
       capabilities: { revision: '1', entries: [] },
     },
     adapter,
-    transport: createFetchTransport({ allowedOrigins: [base.origin] }),
+    transport: createDiagnosticTransport({ allowedOrigins: [base.origin], diagnostics }),
     auth: bearerAuth(() => config.apiKey),
   };
 }
@@ -138,7 +145,8 @@ export async function generateRepairWithAgent({ run, job, store, signal }) {
   if (providerConfigured && selectedModel === null) {
     throw new GenerationError('MODEL_REQUIRED', '실행할 모델을 선택하세요.', { invocationStarted: false, usageManaged: true });
   }
-  const model = providerConfigured ? providerModel(run, config, selectedModel) : localModel(pack);
+  const diagnostics = { current: undefined };
+  const model = providerConfigured ? providerModel(run, config, selectedModel, diagnostics) : localModel(pack);
   const runtime = { name: 'part', version: '0.1.0', mode: providerConfigured ? 'openai-compatible' : 'local-demo',
     modelLabel: providerConfigured ? `OpenAI 호환 제공자 · ${model.profile.model}` : '로컬 예제 · AI 생성 아님 · part fakeModel' };
   const lease = { run, jobId: job.id, leaseToken: job.leaseToken };
@@ -174,14 +182,36 @@ export async function generateRepairWithAgent({ run, job, store, signal }) {
     const outcome = await handle.done;
     await observing;
     await recorder.close();
-    if (outcome.phase !== 'completed') throw new GenerationError(
-      outcome.phase === 'cancelled' ? 'GENERATION_CANCELLED' : outcome.error?.code ?? 'PROVIDER_FAILURE',
-      outcome.phase === 'cancelled' ? '개정 생성을 취소했습니다.' : '제공자가 완전한 개정안을 반환하지 못했습니다.',
-      { invocationStarted: outcome.effect !== 'not-attempted', usageManaged: true });
+    if (outcome.phase !== 'completed') {
+      const providerResponseFailed = outcome.error?.code?.includes('openai-compatible')
+        || outcome.error?.code?.includes('openai-responses');
+      const failureDiagnostics = diagnostics.current ?? (providerResponseFailed
+        ? { stage: 'provider_response', retryable: false, reasonCode: 'provider_response_invalid' }
+        : undefined);
+      throw new GenerationError(
+        outcome.phase === 'cancelled' ? 'GENERATION_CANCELLED' : outcome.error?.code ?? 'PROVIDER_FAILURE',
+        outcome.phase === 'cancelled' ? '개정 생성을 취소했습니다.'
+          : failureDiagnostics ? diagnosticMessage(failureDiagnostics.reasonCode) : '제공자가 완전한 개정안을 반환하지 못했습니다.',
+        { invocationStarted: outcome.effect !== 'not-attempted', usageManaged: true,
+          diagnostics: outcome.phase === 'cancelled' ? undefined : failureDiagnostics });
+    }
     if (outcome.result.finish.normalized !== 'stop') throw new GenerationError('MODEL_OUTPUT_TRUNCATED',
-      '출력 한도에서 잘린 개정안은 사용할 수 없습니다.', { invocationStarted: true, usageManaged: true });
+      diagnosticMessage('output_truncated'), { invocationStarted: true, usageManaged: true,
+        diagnostics: { stage: 'output_truncated', retryable: false, reasonCode: 'output_truncated' } });
     const text = outcome.result.content.filter((part) => part.kind === 'text').map((part) => part.text).join('');
-    const patches = patchesSchema.parse(JSON.parse(text));
+    let raw;
+    try {
+      raw = JSON.parse(text);
+    } catch {
+      throw new GenerationError('MODEL_OUTPUT_INVALID_JSON', diagnosticMessage('invalid_json'),
+        { invocationStarted: true, usageManaged: true,
+          diagnostics: { stage: 'output_json', retryable: false, reasonCode: 'invalid_json' } });
+    }
+    const parsed = patchesSchema.safeParse(raw);
+    if (!parsed.success) throw new GenerationError('MODEL_OUTPUT_INVALID_SHAPE', diagnosticMessage('invalid_shape'),
+      { invocationStarted: true, usageManaged: true,
+        diagnostics: { stage: 'output_shape', retryable: false, reasonCode: 'invalid_shape' } });
+    const patches = parsed.data;
     validateSelection(patches, run);
     return { patches, adapterLabel: runtime.modelLabel, usageManaged: true };
   } catch (error) {
