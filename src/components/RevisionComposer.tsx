@@ -57,10 +57,12 @@ export function RevisionComposer(props: ComposerProps) {
     event.preventDefault()
     if (busy || !context || !instruction.trim() || (props.mode === "repair" && !modelReady)) return
     setBusy(true); setError(null)
+    let launchedRunId: string | null = null
     try {
       if (props.mode === "repair") {
         const input = repairRunSchema.parse({ baseSnapshotId: context.baseSnapshotId, baseWorkspaceHash: context.workspaceHash, instruction: instruction.trim(), sceneIds, planIds, feedbackIds: props.feedbackIds ?? [], ...(model ? { model } : {}) })
         const result = createdIdSchema.parse(await mutateJson<unknown>("api/repair-runs", input, props.branchId))
+        launchedRunId = result.id
         setActiveRunId(result.id)
         await props.onCreated(await waitForRun(result.id, props.branchId))
       } else {
@@ -77,7 +79,10 @@ export function RevisionComposer(props: ComposerProps) {
         await props.onCreated(created.id)
       }
       props.onClose()
-    } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : "수정 제안을 만들지 못했습니다.") } finally { setBusy(false); setActiveRunId(null) }
+    } catch (cause: unknown) {
+      const message = cause instanceof Error ? cause.message : "수정 제안을 만들지 못했습니다."
+      setError(launchedRunId === null ? message : `${message} 에이전트 실행에서 로그를 확인하세요. 실행 ID: ${launchedRunId}`)
+    } finally { setBusy(false); setActiveRunId(null) }
   }
   return <dialog ref={dialogRef} className="dialog-scrim" onCancel={(event) => { event.preventDefault(); close() }} aria-labelledby="composer-title">
     <section className="dialog revision-dialog">
