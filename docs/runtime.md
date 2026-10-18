@@ -33,18 +33,28 @@ Part API는 실험적이므로 두 의존성은 정확히 `0.1.0`으로 고정�
 
 ## 모델과 출력 계약
 
-`OPENAI_API_KEY`가 있으면 `OPENAI_BASE_URL` 아래 `/chat/completions`를 사용합니다. 모델은 실행 요청의 `model`을 우선하며 없으면 선택적인 `OPENAI_MODEL` 기본값을 사용합니다. 선택은 대기열 등록 시 고정되고 두 값 모두 없으면 `MODEL_REQUIRED`로 거절합니다. 제공자는 한 실행 안에서 다음 기능을 함께 지원해야 합니다.
+`OPENAI_API_KEY`가 있으면 `OPENAI_BASE_URL` 아래 기본 `/chat/completions` 또는 명시적으로 설정한 `/responses`를 사용합니다. 모델은 실행 요청의 `model`을 우선하며 없으면 선택적인 `OPENAI_MODEL` 기본값을 사용합니다. 선택은 대기열 등록 시 고정되고 두 값 모두 없으면 `MODEL_REQUIRED`로 거절합니다. 제공자는 한 실행 안에서 다음 기능을 함께 지원해야 합니다.
 
-- SSE streaming Chat Completions
+- 선택한 프로토콜의 SSE streaming
 - function tool 호출과 이어지는 모델 turn
-- `response_format.type=json_schema`와 `strict: true`
-- 호출당 `max_completion_tokens`
+- Chat Completions의 `response_format.type=json_schema` 또는 Responses의 `text.format`과 `strict: true`
+- 호출당 `max_completion_tokens` 또는 `max_output_tokens`
 
 OpenAI 호환 변형 중 일부는 이 조합이나 usage 보고를 지원하지 않을 수 있습니다. 연결 실패, 잘못된 tool 호출, schema-invalid JSON, 선택 범위 불일치, 잘린 응답은 Run 실패이며 로컬 결과로 대체하지 않습니다.
 
 키가 없으면 Part `fakeModel`을 사용하는 결정적 `local-demo`가 실행됩니다. UI와 `/api/runtime-info`는 이를 **AI가 아닌 로컬 예제**로 표시합니다. 이 모드는 실제 모델 품질 검증이 아닙니다.
 
 서버와 `provider:check`는 같은 `.env`를 사용하며 base URL의 기본값은 `https://api.openai.com/v1`입니다. 기본 모델이 비어 있어도 서버는 시작할 수 있지만 키가 설정된 상태의 잘못된 base URL은 거절합니다. `pnpm provider:check`는 기본 모델 없이도 표준 `GET /models`의 인증·catalog 접근을 확인하며 생성 기능을 추정하지 않습니다. CLI에서 실제 생성하려면 `OPENAI_MODEL`을 정한 뒤 quota 사용에 동의하는 `pnpm provider:check --generate`를 실행합니다.
+
+`OPENAI_API=responses`를 설정하면 Part의 Responses 어댑터를 사용합니다. `/responses`에 SSE 요청을 보내고 `text.format`의 strict JSON Schema와 `max_output_tokens`를 사용합니다. Chat Completions와 Responses 사이에 자동 재시도나 자동 프로토콜 전환은 하지 않습니다. 모델과 함께 선택한 프로토콜은 대기열에 저장되므로 서버 기본값 변경이 기존 요청을 바꾸지 않습니다. 이 선택은 Part의 `repair_bundle` 경로에 적용하며, 기존 V1 gateway는 Chat Completions 호환 경로로 유지합니다.
+
+Part 0.1.0과의 호환 계층은 구조가 검증된 정보성 `response.metadata` SSE 프레임만 생략합니다. 다른 프레임은 원래 디코더로 전달하며, 잘못된 metadata나 `response.failed`·`response.incomplete`를 정상 완료로 바꾸지 않습니다.
+
+## 실패 진단과 로그
+
+새 실행의 실패는 `error.diagnostics`에 실패 단계, HTTP 상태, 제공자 코드, 요청 ID, 재시도 가능 여부와 안정적인 원인 분류를 기록합니다. UI의 **실행 실패 진단**에서 읽거나 허용 필드만 담긴 JSON을 복사할 수 있습니다. 서버 stderr에는 `worker.generation_failed`와 실행 ID 및 같은 진단 필드가 출력됩니다. 원문, 키, 헤더, 원시 응답 본문은 기록하지 않습니다.
+
+기존 상세 진단이 없는 실패 기록은 그대로 보존하며 진단을 추측해 채우지 않습니다. 사용량을 알 수 없는 호출이나 lease 만료는 UI에서 `알 수 없음`으로 표시하고 예약을 유지합니다. 자동 재시도는 하지 않으며 원인을 해결한 후 새 실행을 만듭니다.
 
 ## 예산과 사용량
 

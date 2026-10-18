@@ -31,6 +31,7 @@ Node 서버만 직접 실행하려면 `.env.example`을 참고해 `.env`를 만�
 ```dotenv
 OPENAI_API_KEY=your-key
 OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_API=chat-completions
 # Optional default; otherwise select a model in the web UI.
 OPENAI_MODEL=
 ```
@@ -48,6 +49,12 @@ pnpm start
 ```
 
 기본 검사는 인증된 `GET /models`만 사용합니다. 모델 목록 API가 없는 호환 프록시는 `MODEL_CATALOG UNAVAILABLE`로 정직하게 표시하며, 생성·스트리밍·도구·strict schema 지원을 추정하지 않습니다. `--generate`만 격리된 NOVAIL Part run으로 실제 SSE, 읽기 전용 도구 loop와 strict JSON 결과 경로를 확인합니다. 개인 Codex 계정을 Router4U로 연결할 때는 [`docs/router4u.md`](docs/router4u.md)의 게이트웨이 설치·로그인·프로젝트 키 절차를 따르되 NOVAIL에는 같은 `.env`와 일반 명령을 사용하세요.
+
+API 프로토콜은 `OPENAI_API=chat-completions`가 기본입니다. Responses 전용 모델이나 Codex 라우트는 `OPENAI_API=responses`로 설정하세요. 이 경우 Part의 Responses 어댑터가 `/responses`, `text.format`, `max_output_tokens`와 도구 이력을 처리합니다. 모델과 프로토콜은 실행 등록 시 고정됩니다. 실행 실패 시 **에이전트 실행 → 실행 실패 진단**에서 단계·HTTP 상태·원인 코드·요청 ID를 확인하고 안전한 로그를 복사할 수 있습니다. 키, 원문 입력과 원시 제공자 오류 본문은 진단 로그에 포함하지 않습니다.
+
+### 다른 환경에서 이어서 실행
+
+Node 24.22.0 이상에서 `pnpm install --frozen-lockfile`과 `pnpm build`를 실행한 뒤, 해당 환경의 비공개 `.env`를 준비하고 `pnpm start`로 시작합니다. 키·OAuth 자격 증명·원고 저장 파일은 Git에 포함되지 않습니다. 기존 원고를 이어 쓰려면 실제 사용 중인 PostgreSQL 또는 `NOVAIL_DATA_FILE` 데이터를 별도로 안전하게 백업·이전하세요. Router4u를 함께 옮기는 경우에는 [게이트웨이 안내](docs/router4u.md)에 따라 두 볼륨을 보존하고, 이전 설치와 새 설치를 같은 OAuth 자격 증명으로 동시에 실행하지 마세요. 기존 DIM URL과 `/tmp` 파일 경로는 새 환경에서 다시 준비해야 합니다.
 
 ### 개발
 

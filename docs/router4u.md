@@ -58,6 +58,7 @@ pnpm install
 
 ```dotenv
 OPENAI_BASE_URL=http://127.0.0.1:9470/v1
+OPENAI_API=responses
 OPENAI_API_KEY=<Router4U project key>
 # Optional default; select the model in NOVAIL's web UI.
 OPENAI_MODEL=
@@ -110,6 +111,8 @@ dim-development-service expose --name novail --port 3000 --ingress https-ts --re
 ```
 
 서버를 연 뒤 웹 UI에서 Run을 직접 생성해야 실제 사용자 흐름의 추론이 발생합니다. 준비 검사 통과만으로 실제 Run이 수행된 것은 아닙니다.
+
+Codex 라우트에서 Chat Completions가 `unsupported_capability`로 거절되는 경우 `OPENAI_API=responses`를 사용합니다. 실제 모델·라우트의 지원 여부를 확인하고, 기존 실패 실행을 자동 재시도하지 말고 새 실행으로 검증하세요. 모델 목록 조회 성공만으로 전체 개정 도구 루프의 성공이 보장되지는 않습니다.
 
 ## 6. 수명주기와 데이터 책임
 
