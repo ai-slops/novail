@@ -8,6 +8,7 @@ import { enqueueRun, controlRun, claimJob, completeJob } from './queue.mjs';
 import { heartbeatJob, prepareModelAttempt, settleModelAttempt } from './model-budget.mjs';
 import { appendRuntimeEvent } from './runtime-events.mjs';
 import { executionBudgetSchema } from './contracts.ts';
+import { safeRunSummary } from './public-contract.mjs';
 
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'novail-queue-'));
@@ -49,6 +50,7 @@ test('cancel blocks late result selection', async (t) => {
   assert.equal(cancelled.resultRef, undefined);
   assert.equal(job.state, 'cancelled');
   assert.equal(job.usageState, 'reported');
+  assert.equal(safeRunSummary(cancelled).usage.known, true);
 });
 
 test('cancel conservatively retains reservation when late usage is unknown', async (t) => {
@@ -62,7 +64,8 @@ test('cancel conservatively retains reservation when late usage is unknown', asy
   const job = state.jobs.find((item) => item.id === claim.job.id);
   assert.equal(cancelled.actualOutputTokens, 0);
   assert.equal(cancelled.reservedCalls, 1);
-  assert.equal(job.usageState, undefined);
+  assert.equal(job.usageState, 'usage_unknown');
+  assert.equal(safeRunSummary(cancelled).usage.known, false);
 });
 
 test('expired lease retains uncertain budget and requires explicit new execution', async (t) => {
@@ -73,6 +76,7 @@ test('expired lease retains uncertain budget and requires explicit new execution
   const failed = state.runs.find((item) => item.id === run.id);
   assert.equal(failed.error.code, 'USAGE_UNKNOWN');
   assert.equal(failed.reservedCalls, 1);
+  assert.equal(safeRunSummary(failed).usage.known, false);
 });
 
 test('paused queued job is not leased until resumed', async (t) => {
@@ -98,8 +102,10 @@ test('an expired lease cannot prepare a model attempt and becomes terminal immed
   await assert.rejects(prepareModelAttempt(store, { jobId: claim.job.id, leaseToken: claim.job.leaseToken,
     attemptId: 'expired', requestedOutputTokens: 100 }, 121001), { code: 'LEASE_LOST' });
   const state = await store.read();
-  assert.equal(state.runs.find((item) => item.id === run.id).state, 'failed');
+  const failed = state.runs.find((item) => item.id === run.id);
+  assert.equal(failed.state, 'failed');
   assert.equal(state.jobs.find((item) => item.id === claim.job.id).usageState, 'usage_unknown');
+  assert.equal(safeRunSummary(failed).usage.known, false);
 });
 
 test('an expired lease cannot be renewed and becomes terminal immediately', async (t) => {
@@ -109,8 +115,10 @@ test('an expired lease cannot be renewed and becomes terminal immediately', asyn
   assert.deepEqual(await heartbeatJob(store, { jobId: claim.job.id, leaseToken: claim.job.leaseToken }, 121001),
     { accepted: false });
   const state = await store.read();
-  assert.equal(state.runs.find((item) => item.id === run.id).state, 'failed');
+  const failed = state.runs.find((item) => item.id === run.id);
+  assert.equal(failed.state, 'failed');
   assert.equal(state.jobs.find((item) => item.id === claim.job.id).usageState, 'usage_unknown');
+  assert.equal(safeRunSummary(failed).usage.known, false);
 });
 
 test('late usage settlement is retained but an expired lease cannot finalize', async (t) => {
@@ -131,6 +139,7 @@ test('late usage settlement is retained but an expired lease cannot finalize', a
   assert.equal(failed.actualKnownTokens, 32);
   assert.equal(failed.actualOutputTokens, 20);
   assert.equal(failed.resultRef, undefined);
+  assert.equal(safeRunSummary(failed).usage.known, false);
 });
 
 test('stale lease token cannot select a result', async (t) => {

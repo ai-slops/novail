@@ -33,6 +33,11 @@ function reopenOrphanedFeedback(state, feedbackIds) {
   }
 }
 
+function markUsageUnknown(run, job) {
+  run.usageKnown = false;
+  job.usageState = 'usage_unknown';
+}
+
 export async function enqueueRun(store, input) {
   return store.transaction((state) => {
     const scope = resolveBranchScope(state, input.branchId);
@@ -60,8 +65,9 @@ export async function enqueueRun(store, input) {
       state: 'queued', purpose, baseSnapshotId: input.baseSnapshotId,
       ...details, instruction: input.instruction, contextVersion: state.contextVersion ?? 0,
       ...(input.model ? { model: input.model } : {}),
+      ...(input.providerApi ? { providerApi: input.providerApi } : {}),
       budget: executionBudgetSchema.parse(input.budget), reservedCalls: 0, reservedOutputTokens: 0,
-      actualOutputTokens: 0, actualKnownTokens: 0,
+      actualOutputTokens: 0, actualKnownTokens: 0, usageKnown: true,
       createdAt: new Date().toISOString(), cancellationRequested: false,
     };
     state.runs.push(run);
@@ -130,7 +136,7 @@ export async function claimJob(store, now = Date.now()) {
       const run = state.runs.find((item) => item.id === job.runId);
       if (!run || !isActiveRecord(state, run)) continue;
       job.state = 'failed';
-      job.usageState = 'usage_unknown';
+      markUsageUnknown(run, job);
       run.state = 'failed';
       run.error = { code: 'USAGE_UNKNOWN', message: '호출 결과를 확인할 수 없습니다. 예약을 유지하며 명시적인 새 실행이 필요합니다.' };
       appendEvent(state, run, 'run.failed', run.error);
@@ -169,11 +175,14 @@ export async function completeJob(store, input, now = Date.now()) {
         run.actualOutputTokens += input.outputTokens;
         job.usageState = 'reported';
       }
+      const managedUsageUnknown = input.usageManaged === true
+        && job.modelAttempts?.some((attempt) => ['reserved', 'usage_unknown'].includes(attempt.state));
+      if ((!input.usageManaged && !input.usageKnown) || managedUsageUnknown) markUsageUnknown(run, job);
       return { accepted: false };
     }
     if (job.state === 'running' && job.leaseUntil <= now) {
       job.state = 'failed';
-      job.usageState = 'usage_unknown';
+      markUsageUnknown(run, job);
       run.state = 'failed';
       run.error = { code: 'USAGE_UNKNOWN', message: '호출 결과를 확인할 수 없습니다. 예약을 유지하며 명시적인 새 실행이 필요합니다.' };
       appendEvent(state, run, 'run.failed', run.error);
@@ -191,6 +200,7 @@ export async function completeJob(store, input, now = Date.now()) {
       run.error = input.error;
       job.state = 'failed';
       job.usageState = input.usageManaged ? 'part-managed' : input.usageKnown ? 'reported' : 'usage_unknown';
+      if (job.usageState === 'usage_unknown') run.usageKnown = false;
       appendEvent(state, run, 'run.failed', input.error);
       return { accepted: false };
     }

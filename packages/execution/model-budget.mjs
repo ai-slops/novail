@@ -14,6 +14,7 @@ const leaseIsActive = (state, lease, now) => lease.job.state === 'running' && le
 function expireLease(state, lease) {
   lease.job.state = 'failed';
   lease.job.usageState = 'usage_unknown';
+  lease.run.usageKnown = false;
   lease.run.state = 'failed';
   lease.run.error = { code: 'USAGE_UNKNOWN',
     message: '호출 결과를 확인할 수 없습니다. 예약을 유지하며 명시적인 새 실행이 필요합니다.' };
@@ -70,6 +71,7 @@ export async function settleModelAttempt(store, input) {
     }
     if (input.outcome === 'unknown') {
       attempt.state = 'usage_unknown';
+      lease.run.usageKnown = false;
       return { accepted: true };
     }
     const outputTokens = input.outputTokens ?? attempt.reservedOutputTokens;
