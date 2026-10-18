@@ -48,6 +48,20 @@ test('allows a configured provider without a default model', () => {
   assert.equal(config.model, null);
 });
 
+test('selects the Responses protocol explicitly while Chat Completions remains the default', () => {
+  const chat = providerConfig({ OPENAI_API_KEY: 'provider-secret' });
+  const responses = providerConfig({ OPENAI_API_KEY: 'provider-secret', OPENAI_API: 'responses' });
+
+  assert.equal(chat.api, 'chat-completions');
+  assert.equal(responses.api, 'responses');
+});
+
+test('rejects an unknown provider API protocol', () => {
+  assert.throws(() => providerConfig({ OPENAI_API_KEY: 'provider-secret', OPENAI_API: 'legacy' }), {
+    code: 'CONFIGURATION_INVALID',
+  });
+});
+
 test('rejects control characters in a nonblank configured model', () => {
   assert.throws(() => providerConfig({ OPENAI_API_KEY: 'provider-secret', OPENAI_MODEL: 'model\u0000id' }), {
     code: 'CONFIGURATION_INVALID',

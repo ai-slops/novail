@@ -26,9 +26,14 @@ export function providerConfig(environment = process.env, options = {}) {
   const rawBaseUrl = configuredBaseUrl === undefined ? DEFAULT_BASE_URL : configuredBaseUrl.trim();
   const configuredModel = environment.OPENAI_MODEL;
   const model = configuredModel?.trim() || null;
+  const api = environment.OPENAI_API?.trim() || 'chat-completions';
   if (!rawBaseUrl || (model !== null && (model.length > 200 || /[\u0000-\u001f\u007f]/u.test(model)))) {
     throw new ProviderConfigError('CONFIGURATION_INVALID',
       'Configured OPENAI_BASE_URL must be non-empty and OPENAI_MODEL must not contain control characters.');
+  }
+  if (!['chat-completions', 'responses'].includes(api)) {
+    throw new ProviderConfigError('CONFIGURATION_INVALID',
+      'OPENAI_API must be chat-completions or responses.');
   }
 
   let base;
@@ -47,6 +52,7 @@ export function providerConfig(environment = process.env, options = {}) {
     apiKey,
     baseUrl: base.toString().replace(/\/$/u, ''),
     model,
+    api,
     timeoutMs: 10_000,
   });
 }
