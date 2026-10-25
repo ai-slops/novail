@@ -38,14 +38,14 @@ test("exact citation uses untrimmed quote and Unicode code-point offsets", async
 })
 
 test("every verdict requires rationale while only known verdicts require citations", () => {
-  assert.deepEqual(validateCriterion({ ...criterion, verdict: "fulfilled", rationale: "", citations: [] }), ["판단 근거를 입력하세요.", "이전 또는 제안 원문에서 인용을 추가하세요."])
-  assert.deepEqual(validateCriterion({ ...criterion, rationale: "" }), ["판단 근거를 입력하세요."])
+  assert.deepEqual(validateCriterion({ ...criterion, verdict: "fulfilled", rationale: "", citations: [] }), ["Enter the rationale for this judgment.", "Add a citation from the before or proposal text."])
+  assert.deepEqual(validateCriterion({ ...criterion, rationale: "" }), ["Enter the rationale for this judgment."])
   assert.deepEqual(validateCriterion(criterion), [])
 })
 
 test("every verdict requires a criterion sentence", () => {
   const citation = { entryId: "entry-1", side: "after", field: "text", sourceHash: "b".repeat(64), startCp: 0, endCp: 1, quote: "근" }
-  assert.deepEqual(validateCriterion({ ...criterion, text: "  ", verdict: "fulfilled", rationale: "사람의 판단", citations: [citation] }), ["평가 기준을 입력하세요."])
+  assert.deepEqual(validateCriterion({ ...criterion, text: "  ", verdict: "fulfilled", rationale: "사람의 판단", citations: [citation] }), ["Enter an evaluation criterion."])
 })
 
 test("latest valid report initializes a revision and corrupt entries are ignored", () => {
