@@ -22,18 +22,18 @@ export const providerHttpDiagnostics = (status, providerCode, requestId) => ({
 
 export const diagnosticMessage = (reasonCode) => {
   switch (reasonCode) {
-    case 'authentication_failed': return '제공자 인증을 확인하세요.';
-    case 'policy_denied': return '프로젝트 키 권한과 제공자 정책을 확인하세요.';
-    case 'unsupported_capability': return '선택한 모델이 이 요청 기능을 지원하지 않습니다. API 방식과 모델 기능을 확인하세요.';
-    case 'unsupported_parameter': return '제공자가 요청 매개변수를 지원하지 않습니다. API 방식과 모델 설정을 확인하세요.';
-    case 'quota_exceeded': return '제공자 사용량 한도 또는 결제 상태를 확인한 뒤 다시 시도하세요.';
-    case 'upstream_unavailable': return '제공자 서비스가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도하세요.';
-    case 'network_failure': return '제공자에 연결할 수 없습니다. 네트워크와 제공자 주소를 확인하세요.';
-    case 'invalid_json': return '제공자 출력이 유효한 JSON이 아닙니다.';
-    case 'invalid_shape': return '제공자 출력 형식이 필요한 개정안 구조와 다릅니다.';
-    case 'scope_mismatch': return '제공자 출력의 수정 대상이 승인된 실행 범위와 다릅니다.';
-    case 'output_truncated': return '출력 한도에서 잘린 개정안은 사용할 수 없습니다. 출력 한도를 늘리세요.';
-    default: return '제공자 요청에 실패했습니다. 실행 진단을 확인하세요.';
+    case 'authentication_failed': return 'Check provider authentication.';
+    case 'policy_denied': return 'Check project key permissions and provider policy.';
+    case 'unsupported_capability': return 'The selected model does not support this request. Check the API mode and model capabilities.';
+    case 'unsupported_parameter': return 'The provider does not support a request parameter. Check the API mode and model settings.';
+    case 'quota_exceeded': return 'Check the provider usage limit or billing status, then try again.';
+    case 'upstream_unavailable': return 'The provider service is temporarily unavailable. Try again shortly.';
+    case 'network_failure': return 'Could not connect to the provider. Check the network and provider URL.';
+    case 'invalid_json': return 'The provider output is not valid JSON.';
+    case 'invalid_shape': return 'The provider output does not match the required revision structure.';
+    case 'scope_mismatch': return 'The provider output targets differ from the approved run scope.';
+    case 'output_truncated': return 'A revision truncated at the output limit cannot be used. Increase the output limit.';
+    default: return 'The provider request failed. Review the run diagnostics.';
   }
 };
 
