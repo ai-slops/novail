@@ -132,7 +132,7 @@ test('runs the real Part tool loop only with explicit generate opt-in', async (t
   assert.match(result.stdout, /PART_INTEGRATION PASS/);
   assert.match(result.stdout, /TOOLS exercised=3/);
   assert.match(result.stdout, /HEAD unchanged/);
-  assert.doesNotMatch(`${result.stdout}${result.stderr}`, /provider-secret|Bearer|푸른 인장의 밤/);
+  assert.doesNotMatch(`${result.stdout}${result.stderr}`, /provider-secret|Bearer|Night of the Blue Seal/);
   assert.equal(chatCalls, 2);
 });
 

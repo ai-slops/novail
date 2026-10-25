@@ -19,12 +19,12 @@ export function mountProviderRoutes(app) {
     } catch (error) {
       if (!(error instanceof ProviderCatalogError)) throw error;
       if (error.code === 'AUTHENTICATION_FAILED') {
-        throw new DomainError('PROVIDER_KEY_REJECTED', '제공자가 서버 API 키를 거부했습니다. 키를 다시 확인하세요.', 502);
+        throw new DomainError('PROVIDER_KEY_REJECTED', 'The provider rejected the server API key. Check the key again.', 502);
       }
       if (error.code === 'MODEL_CATALOG_UNSUPPORTED') {
-        throw new DomainError('MODEL_CATALOG_UNSUPPORTED', '제공자가 모델 목록을 지원하지 않습니다. 모델 ID를 직접 입력하세요.', 502);
+        throw new DomainError('MODEL_CATALOG_UNSUPPORTED', 'The provider does not support model listing. Enter a model ID directly.', 502);
       }
-      throw new DomainError('MODEL_CATALOG_FAILED', '제공자 모델 목록을 안전하게 불러오지 못했습니다.', 502);
+      throw new DomainError('MODEL_CATALOG_FAILED', 'Could not load the provider model list safely.', 502);
     }
   });
 }
