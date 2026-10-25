@@ -16,10 +16,10 @@ export function createApplicationWorker(store) {
       assertRecordBranch(state, run);
       if (run.purpose === 'repair_bundle') {
         if (workspaceHash(run.inputWorkspace) !== run.baseWorkspaceHash) {
-          throw new GenerationError('RUN_INPUT_INVALID', '고정된 개정 입력의 해시가 일치하지 않습니다.', { status: 409, outputTokens: 0, invocationStarted: false });
+          throw new GenerationError('RUN_INPUT_INVALID', 'The frozen revision input hash does not match.', { status: 409, outputTokens: 0, invocationStarted: false });
         }
         if (state.head !== run.baseSnapshotId || workspaceHash(state) !== run.baseWorkspaceHash) {
-          throw new GenerationError('STALE_WORKSPACE', '실행 전에 원고 또는 기획이 바뀌었습니다. 새 개정 요청을 만드세요.', { status: 409, outputTokens: 0, invocationStarted: false });
+          throw new GenerationError('STALE_WORKSPACE', 'The manuscript or planning context changed before the run. Create a new revision request.', { status: 409, outputTokens: 0, invocationStarted: false });
         }
         return generateRepair({ run, job, store, signal });
       }
