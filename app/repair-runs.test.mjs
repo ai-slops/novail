@@ -12,7 +12,7 @@ test('multi-artifact repair creates one reviewed changeset without advancing can
   const state = await readState(app);
   const response = await command(app, '/api/repair-runs', {
     baseSnapshotId: state.head, baseWorkspaceHash: workspaceHash(await store.read()),
-    instruction: '인물의 선택을 더 분명하게', sceneIds: ['scene-1', 'scene-7'], planIds: ['plan-plot'], feedbackIds: [],
+    instruction: 'Clarify the character choices', sceneIds: ['scene-1', 'scene-7'], planIds: ['plan-plot'], feedbackIds: [],
   }, { branchId: state.currentBranchId });
   assert.equal(response.status, 202);
   const run = await response.json();
@@ -26,7 +26,7 @@ test('multi-artifact repair creates one reviewed changeset without advancing can
   assert.equal(proposal.kind, 'repair');
   assert.ok(proposal.entries.some((entry) => entry.kind === 'scene'));
   assert.ok(proposal.entries.some((entry) => entry.kind === 'plan'));
-  assert.ok(proposal.reason.includes('로컬 예제 · AI 생성 아님 · part fakeModel'));
+  assert.ok(proposal.reason.includes('Local example (not AI) · part fakeModel'));
   assert.deepEqual(after.runEvents.filter((event) => event.runId === run.id && event.type === 'runtime.tool.completed')
     .map((event) => event.details.toolId), [
     'novail_read_selected_scenes',

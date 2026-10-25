@@ -36,7 +36,7 @@ function validateSelection(patches, run) {
   for (const [items, ids] of [[patches.scenes, run.sceneIds], [patches.plans, run.planIds]]) {
     const returned = new Set(items.map((item) => item.id));
     if (returned.size !== items.length || returned.size !== ids.length || ids.some((id) => !returned.has(id))) {
-      throw new GenerationError('MODEL_SCOPE_MISMATCH', '제공자 출력의 수정 대상이 승인된 실행 범위와 다릅니다.',
+      throw new GenerationError('MODEL_SCOPE_MISMATCH', 'The provider output targets differ from the approved run scope.',
         { invocationStarted: true, usageManaged: true,
           diagnostics: { stage: 'output_scope', retryable: false, reasonCode: 'scope_mismatch' } });
     }
@@ -74,9 +74,9 @@ function providerModel(run, config, selectedModel, diagnostics) {
 function localModel(pack) {
   const patches = {
     scenes: pack.scenes.map((scene) => ({ id: scene.id,
-      text: `${scene.text}\n\n잠시 침묵이 흘렀다. 이제 선택의 책임을 다른 사람에게 미룰 수는 없었다.` })),
+      text: `${scene.text}\n\nSilence held for a moment. The responsibility for this choice could no longer be passed to someone else.` })),
     plans: pack.plans.map((plan) => ({ id: plan.id,
-      description: `${plan.description}\n검토 방향: ${pack.instruction}` })),
+      description: `${plan.description}\nReview direction: ${pack.instruction}` })),
   };
   return fakeModel([
     { toolCalls: READ_ONLY_TOOL_IDS.map((name) => ({ name, arguments: {} })) },
@@ -105,7 +105,7 @@ function durableBoundary(store, lease) {
           requestedOutputTokens });
         if (reservation.reservedOutputTokens < requestedOutputTokens) {
           await settleModelAttempt(store, { ...lease, attemptId: plan.attemptId, outcome: 'not-attempted' });
-          return fail('BUDGET_EXCEEDED', '남은 출력 예산이 제공자 요청 한도보다 작습니다.', 'conflict', 'not-attempted');
+          return fail('BUDGET_EXCEEDED', 'The remaining output budget is smaller than the provider request limit.', 'conflict', 'not-attempted');
         }
         return ok(undefined);
       } catch (error) {
@@ -143,12 +143,12 @@ export async function generateRepairWithAgent({ run, job, store, signal }) {
   const providerConfigured = config.mode === 'openai-compatible';
   const selectedModel = run.model ?? config.model;
   if (providerConfigured && selectedModel === null) {
-    throw new GenerationError('MODEL_REQUIRED', '실행할 모델을 선택하세요.', { invocationStarted: false, usageManaged: true });
+    throw new GenerationError('MODEL_REQUIRED', 'Select a model to run.', { invocationStarted: false, usageManaged: true });
   }
   const diagnostics = { current: undefined };
   const model = providerConfigured ? providerModel(run, config, selectedModel, diagnostics) : localModel(pack);
   const runtime = { name: 'part', version: '0.1.0', mode: providerConfigured ? 'openai-compatible' : 'local-demo',
-    modelLabel: providerConfigured ? `OpenAI 호환 제공자 · ${model.profile.model}` : '로컬 예제 · AI 생성 아님 · part fakeModel' };
+    modelLabel: providerConfigured ? `OpenAI-compatible provider · ${model.profile.model}` : 'Local example (not AI) · part fakeModel' };
   const lease = { run, jobId: job.id, leaseToken: job.leaseToken };
   const tools = toolsFor(pack);
   const toolSchemas = Object.fromEntries(READ_ONLY_TOOL_IDS.map((id) => [id, emptyJsonSchema]));
@@ -163,7 +163,7 @@ export async function generateRepairWithAgent({ run, job, store, signal }) {
       maxConcurrentOperations: 1,
       deadline: new Date(Date.now() + run.budget.deadlineSeconds * 1000).toISOString(),
     } });
-  if (!created.ok) throw new GenerationError('PART_CONFIGURATION_FAILED', 'part 실행 구성을 시작하지 못했습니다.',
+  if (!created.ok) throw new GenerationError('PART_CONFIGURATION_FAILED', 'Could not initialize the Part run configuration.',
     { invocationStarted: false, usageManaged: true });
   const agent = created.value;
   let handle;
@@ -171,7 +171,7 @@ export async function generateRepairWithAgent({ run, job, store, signal }) {
   const recorder = createProgressRecorder(store, lease);
   try {
     const started = await agent.start(await repairMessages(run));
-    if (!started.ok) throw new GenerationError('PART_START_FAILED', 'part 실행을 시작하지 못했습니다.',
+    if (!started.ok) throw new GenerationError('PART_START_FAILED', 'Could not start the Part run.',
       { invocationStarted: false, usageManaged: true });
     handle = started.value;
     await appendRuntimeEvent(store, { ...lease, type: 'runtime.started', details: { runtime } });
@@ -190,8 +190,8 @@ export async function generateRepairWithAgent({ run, job, store, signal }) {
         : undefined);
       throw new GenerationError(
         outcome.phase === 'cancelled' ? 'GENERATION_CANCELLED' : outcome.error?.code ?? 'PROVIDER_FAILURE',
-        outcome.phase === 'cancelled' ? '개정 생성을 취소했습니다.'
-          : failureDiagnostics ? diagnosticMessage(failureDiagnostics.reasonCode) : '제공자가 완전한 개정안을 반환하지 못했습니다.',
+        outcome.phase === 'cancelled' ? 'Revision generation was cancelled.'
+          : failureDiagnostics ? diagnosticMessage(failureDiagnostics.reasonCode) : 'The provider did not return a complete revision.',
         { invocationStarted: outcome.effect !== 'not-attempted', usageManaged: true,
           diagnostics: outcome.phase === 'cancelled' ? undefined : failureDiagnostics });
     }
@@ -216,7 +216,7 @@ export async function generateRepairWithAgent({ run, job, store, signal }) {
     return { patches, adapterLabel: runtime.modelLabel, usageManaged: true };
   } catch (error) {
     if (error instanceof GenerationError) throw error;
-    throw new GenerationError('PROVIDER_FAILURE', '제공자가 범위에 맞는 완전한 개정안을 반환하지 못했습니다.',
+    throw new GenerationError('PROVIDER_FAILURE', 'The provider did not return a complete revision matching the scope.',
       { invocationStarted: Boolean(handle), usageManaged: true });
   } finally {
     if (cancel) signal.removeEventListener('abort', cancel);

@@ -14,7 +14,7 @@ const safeError = (error) => {
   if (!error || typeof error !== 'object') return undefined;
   const diagnostics = failureDiagnosticsSchema.safeParse(error.diagnostics);
   return { code: typeof error.code === 'string' ? error.code : 'GENERATION_FAILED',
-    message: typeof error.message === 'string' ? error.message : '생성에 실패했습니다.',
+    message: typeof error.message === 'string' ? error.message : 'Generation failed.',
     ...(diagnostics.success ? { diagnostics: diagnostics.data } : {}) };
 };
 
@@ -112,8 +112,8 @@ export function runtimeInfo() {
     mode: configured ? 'openai-compatible' : 'local-demo',
     nonAI: !configured,
     model: { label: configured
-      ? config.model ? `OpenAI 호환 제공자 · ${config.model}` : '실행할 모델을 선택하세요'
-      : '로컬 예제 · AI 생성 아님 · part fakeModel', defaultModel: config.model },
+      ? config.model ? `OpenAI-compatible provider · ${config.model}` : 'Select a model to run'
+      : 'Local example (not AI) · part fakeModel', defaultModel: config.model },
     publicBudget: { defaults: PUBLIC_BUDGET_DEFAULTS, limits: PUBLIC_BUDGET_LIMITS },
     readOnlyToolIds: READ_ONLY_TOOL_IDS,
   });
