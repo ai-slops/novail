@@ -60,7 +60,7 @@ test("Given an unmigrated file, when FileStore initializes twice, then one deter
   t.after(() => reopened.close());
 
   assert.equal(first.branches.length, 1);
-  assert.equal(first.branches[0].name, "주 작업본");
+  assert.equal(first.branches[0].name, "Main workspace");
   assert.equal(first.currentBranchId, first.branches[0].id);
   assert.equal(second.currentBranchId, first.currentBranchId);
   assert.deepEqual(second.branches, first.branches);
@@ -103,7 +103,7 @@ test("Given active and archived legacy projects, when migrated, then both receiv
   const reopened = await store.read();
 
   assert.equal(archivedWorkspace.branches.length, 1);
-  assert.equal(archivedWorkspace.branches[0].name, "주 작업본");
+  assert.equal(archivedWorkspace.branches[0].name, "Main workspace");
   assert.equal(response.status, 200);
   assert.equal(reopened.candidates.some((candidate) => candidate.id === archivedCandidateId), true);
   assert.equal(reopened.branches.length, 1);
