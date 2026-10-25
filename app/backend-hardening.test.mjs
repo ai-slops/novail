@@ -30,7 +30,7 @@ test("Given editor state, when read aliases are requested, then focused resource
     const project = await (await app.request("/api/projects/project-blue-seal")).json();
     assert.equal(scenes.length, 7);
     assert.equal(plans.length, 4);
-    assert.equal(project.title, "푸른 인장의 밤");
+    assert.equal(project.title, "Night of the Blue Seal");
   } finally {
     await cleanup();
   }

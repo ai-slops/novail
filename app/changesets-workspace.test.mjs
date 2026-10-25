@@ -63,5 +63,5 @@ test("Given display chapters that differ from layout, when exported, then layout
   const state = createSeed();
   state.scenes = [state.scenes[1], state.scenes[0], ...state.scenes.slice(2)];
   const markdown = exportMarkdown(state);
-  assert.ok(markdown.indexOf("## 3장.") < markdown.indexOf("## 1장."));
+  assert.ok(markdown.indexOf("## Chapter 3.") < markdown.indexOf("## Chapter 1."));
 });

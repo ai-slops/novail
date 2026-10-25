@@ -132,7 +132,7 @@ test('unadopted saved drafts never leak into published or snapshot exports', asy
   assert.ok(!(await (await app.request(`/api/editions/${edition.id}/export`)).text()).includes('미채택 비공개 초안'));
 });
 
-test('DOCX is a valid OOXML archive containing Korean snapshot text and headings', async (t) => {
+test('DOCX is a valid OOXML archive containing snapshot text and headings', async (t) => {
   const { app, state } = await fixture(t);
   const response = await app.request(`/api/export?format=docx&snapshotId=${state.head}`);
   assert.equal(response.status, 200);
@@ -142,8 +142,8 @@ test('DOCX is a valid OOXML archive containing Korean snapshot text and headings
   const document = zip.file('word/document.xml');
   assert.ok(document);
   const xml = await document.async('string');
-  assert.ok(xml.includes('봉쇄된 항구'));
-  assert.ok(xml.includes('상자는 배가 아니라 약속을 봉인한다'));
+  assert.ok(xml.includes('The Blockaded Harbor'));
+  assert.ok(xml.includes('The box seals a promise, not a ship'));
   assert.ok(xml.includes('Heading1'));
   assert.ok(zip.file('[Content_Types].xml'));
 });
@@ -173,7 +173,7 @@ test('DOCX preserves Unicode, special characters, and line breaks', async (t) =>
   const xml = await zip.file('word/document.xml').async('string');
   assert.ok(xml.includes('&lt;비밀&gt; &amp; 약속 🌙'));
   assert.ok(xml.includes('<w:br'));
-  assert.ok(xml.indexOf('봉쇄된 항구') < xml.indexOf('달빛 &amp; 바다'));
+  assert.ok(xml.indexOf('The Blockaded Harbor') < xml.indexOf('달빛 &amp; 바다'));
 });
 
 test('DOCX refuses XML-incompatible characters instead of silently deleting manuscript text', async (t) => {
