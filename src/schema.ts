@@ -4,7 +4,7 @@ const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 
 const projectSchema = z.object({ id: z.string(), title: z.string(), subtitle: z.string(), stage: z.string() })
 const sceneSchema = z.object({
-  id: z.string(), title: z.string(), chapter: z.number().int().positive().transform((value) => `${value}장`), status: z.string(), text: z.string(), summary: z.string(), storyTime: z.string(), characters: z.array(z.string()), protectedQuotes: z.array(z.string()),
+  id: z.string(), title: z.string(), chapter: z.number().int().positive().transform((value) => `Chapter ${value}`), status: z.string(), text: z.string(), summary: z.string(), storyTime: z.string(), characters: z.array(z.string()), protectedQuotes: z.array(z.string()),
 })
 const feedbackSchema = z.object({ id: z.string(), sceneId: z.string(), text: z.string(), scope: z.string(), state: z.string(), createdAt: z.string() })
 const candidateSchema = z.object({

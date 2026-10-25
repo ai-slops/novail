@@ -8,7 +8,7 @@ import { branchHeaders, snapshotExportUrl } from './api-contract.ts';
 test('API numeric chapter parses into a readable frontend chapter label', () => {
   const response = publicState(createSeed());
   const parsed = workspaceSchema.parse(response);
-  assert.equal(parsed.scenes.find((scene) => scene.id === 'scene-7').chapter, '7장');
+  assert.equal(parsed.scenes.find((scene) => scene.id === 'scene-7').chapter, 'Chapter 7');
 });
 
 test('legacy state without editions parses with an empty edition ledger', () => {
