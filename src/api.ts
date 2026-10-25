@@ -35,7 +35,7 @@ const apiError = async (error: HTTPError): Promise<ApiError> => {
       return new ApiError(code, detail.message)
     }
   }
-  return new ApiError("HTTP_ERROR", `요청에 실패했습니다 (${error.response.status}). 다시 시도하세요.`)
+  return new ApiError("HTTP_ERROR", `Request failed (${error.response.status}). Try again.`)
 }
 
 export const getState = async (branchId?: string): Promise<WorkspaceState> => workspaceSchema.parse(
@@ -124,9 +124,9 @@ export async function waitForRun(id: string, branchId: string): Promise<string |
     if (!(error instanceof Error)) throw error
   }
   const result = runCompletionSchema.parse(await client.get(`api/runs/${id}`, { headers: branchHeaders(branchId) }).json<unknown>())
-  if (result.state === "cancelled") throw new ApiError("RUN_CANCELLED", "작업을 취소했습니다. 이미 진행된 외부 호출 비용은 발생할 수 있습니다.")
+  if (result.state === "cancelled") throw new ApiError("RUN_CANCELLED", "The run was cancelled. Charges may still apply for external calls already made.")
   if (result.state !== "awaiting_decision") {
-    throw new ApiError(result.error?.code ?? "RUN_PENDING", result.error?.message ?? "작업이 아직 완료되지 않았습니다. 버전 기록에서 실행 상태를 확인하세요.")
+    throw new ApiError(result.error?.code ?? "RUN_PENDING", result.error?.message ?? "The run is not complete yet. Check its status in Agent runs.")
   }
   return result.resultRef ?? undefined
 }
@@ -196,7 +196,7 @@ export async function streamRuntimeEvents(options: RuntimeStreamOptions): Promis
       timeout: false,
     })
     const reader = response.body?.getReader()
-    if (!reader) throw new ApiError("STREAM_UNAVAILABLE", "이 브라우저에서는 실행 진행 스트림을 열 수 없습니다.")
+    if (!reader) throw new ApiError("STREAM_UNAVAILABLE", "This browser cannot open the run progress stream.")
     const decoder = new TextDecoder()
     let remainder = ""
     while (!options.signal.aborted) {
