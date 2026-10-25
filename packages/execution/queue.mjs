@@ -43,22 +43,22 @@ export async function enqueueRun(store, input) {
     const scope = resolveBranchScope(state, input.branchId);
     const previous = input.requestKey && state.idempotency[input.requestKey];
     if (previous) {
-      if (previous.hash !== input.requestHash) throw new RunError('IDEMPOTENCY_CONFLICT', '같은 키에 다른 요청을 사용할 수 없습니다.');
+      if (previous.hash !== input.requestHash) throw new RunError('IDEMPOTENCY_CONFLICT', 'The same key cannot be used for a different request.');
       assertReplayScope(state, previous, scope);
       return previous.result;
     }
     assertActiveScope(state, scope);
-    if (state.head !== input.baseSnapshotId) throw new RunError('STALE_BASE', '작업본이 변경되었습니다.');
+    if (state.head !== input.baseSnapshotId) throw new RunError('STALE_BASE', 'The workspace changed.');
     const purpose = input.purpose ?? 'revise_scene';
     let details;
     switch (purpose) {
       case 'revise_scene':
-        if (!state.scenes.some((scene) => scene.id === input.sceneId)) throw new RunError('NOT_FOUND', '장면을 찾을 수 없습니다.', 404);
-        if (input.feedbackId && !state.feedback.some((feedback) => feedback.id === input.feedbackId && feedback.sceneId === input.sceneId)) throw new RunError('NOT_FOUND', '이 장면의 피드백을 찾을 수 없습니다.', 404);
+        if (!state.scenes.some((scene) => scene.id === input.sceneId)) throw new RunError('NOT_FOUND', 'Scene not found.', 404);
+        if (input.feedbackId && !state.feedback.some((feedback) => feedback.id === input.feedbackId && feedback.sceneId === input.sceneId)) throw new RunError('NOT_FOUND', 'Feedback for this scene not found.', 404);
         details = { sceneId: input.sceneId, feedbackId: input.feedbackId ?? null };
         break;
       case 'repair_bundle': details = prepareRepairInput(state, input); break;
-      default: throw new RunError('SCHEMA_INVALID', '지원하지 않는 실행 종류입니다.', 422);
+      default: throw new RunError('SCHEMA_INVALID', 'Unsupported run type.', 422);
     }
     const run = {
       id: randomUUID(), projectId: state.project.id, branchId: scope.branchId, queueManaged: true,
@@ -85,18 +85,18 @@ export async function controlRun(store, input) {
     const scope = resolveBranchScope(state, input.branchId);
     const previous = input.requestKey && state.idempotency[input.requestKey];
     if (previous) {
-      if (previous.hash !== input.requestHash) throw new RunError('IDEMPOTENCY_CONFLICT', '같은 키에 다른 요청을 사용할 수 없습니다.');
+      if (previous.hash !== input.requestHash) throw new RunError('IDEMPOTENCY_CONFLICT', 'The same key cannot be used for a different request.');
       assertReplayScope(state, previous, scope);
       return previous.result;
     }
     assertActiveScope(state, scope);
     const run = state.runs.find((item) => item.id === input.id && item.queueManaged);
-    if (!run) throw new RunError('NOT_FOUND', '작업을 찾을 수 없습니다.', 404);
+    if (!run) throw new RunError('NOT_FOUND', 'Agent run not found.', 404);
     assertRecordBranch(state, run);
     const jobs = (state.jobs ?? []).filter((job) => job.runId === run.id);
     switch (input.action) {
       case 'cancel':
-        if (['completed', 'failed', 'cancelled'].includes(run.state)) throw new RunError('RUN_FINISHED', '이미 종료된 작업입니다.');
+        if (['completed', 'failed', 'cancelled'].includes(run.state)) throw new RunError('RUN_FINISHED', 'The agent run has already finished.');
         run.state = 'cancelled';
         run.cancellationRequested = true;
         for (const job of jobs.filter((item) => ['queued', 'running'].includes(item.state))) job.state = 'cancelled';
@@ -110,16 +110,16 @@ export async function controlRun(store, input) {
         ]));
         break;
       case 'pause':
-        if (run.state !== 'queued') throw new RunError('INVALID_TRANSITION', '대기 중인 작업만 일시 정지할 수 있습니다.');
+        if (run.state !== 'queued') throw new RunError('INVALID_TRANSITION', 'Only a queued agent run can be paused.');
         run.state = 'paused';
         break;
       case 'resume':
-        if (run.state !== 'paused') throw new RunError('INVALID_TRANSITION', '일시 정지된 작업만 재개할 수 있습니다.');
-        if (state.head !== run.baseSnapshotId) throw new RunError('STALE_BASE', '재개 전에 새 작업본으로 다시 실행하세요.');
+        if (run.state !== 'paused') throw new RunError('INVALID_TRANSITION', 'Only a paused agent run can be resumed.');
+        if (state.head !== run.baseSnapshotId) throw new RunError('STALE_BASE', 'Run again from the new workspace before resuming.');
         run.state = jobs.some((job) => job.state === 'running') ? 'running' : 'queued';
         break;
       default:
-        throw new RunError('SCHEMA_INVALID', '지원하지 않는 작업 명령입니다.', 422);
+        throw new RunError('SCHEMA_INVALID', 'Unsupported agent run command.', 422);
     }
     appendEvent(state, run, `run.${run.state}`, { externalCallMayStillBeBilled: jobs.some((job) => job.attempt > 0) });
     if (input.requestKey) state.idempotency[input.requestKey] = { hash: input.requestHash, result: structuredClone(run), status: 200,
@@ -138,7 +138,7 @@ export async function claimJob(store, now = Date.now()) {
       job.state = 'failed';
       markUsageUnknown(run, job);
       run.state = 'failed';
-      run.error = { code: 'USAGE_UNKNOWN', message: '호출 결과를 확인할 수 없습니다. 예약을 유지하며 명시적인 새 실행이 필요합니다.' };
+      run.error = { code: 'USAGE_UNKNOWN', message: 'The call result cannot be confirmed. The reservation is retained and an explicit new run is required.' };
       appendEvent(state, run, 'run.failed', run.error);
     }
     const job = state.jobs.find((item) => item.state === 'queued' && state.runs.some((run) => run.id === item.runId && run.state === 'queued' && isActiveRecord(state, run)));
@@ -149,7 +149,7 @@ export async function claimJob(store, now = Date.now()) {
     if (run.reservedCalls >= run.budget.maxModelCalls || run.actualOutputTokens >= run.budget.maxOutputTokens) {
       job.state = 'failed';
       run.state = 'failed';
-      run.error = { code: 'BUDGET_EXCEEDED', message: '실행 예산을 초과했습니다.' };
+      run.error = { code: 'BUDGET_EXCEEDED', message: 'The agent run budget was exceeded.' };
       appendEvent(state, run, 'run.failed', run.error);
       return null;
     }
@@ -184,7 +184,7 @@ export async function completeJob(store, input, now = Date.now()) {
       job.state = 'failed';
       markUsageUnknown(run, job);
       run.state = 'failed';
-      run.error = { code: 'USAGE_UNKNOWN', message: '호출 결과를 확인할 수 없습니다. 예약을 유지하며 명시적인 새 실행이 필요합니다.' };
+      run.error = { code: 'USAGE_UNKNOWN', message: 'The call result cannot be confirmed. The reservation is retained and an explicit new run is required.' };
       appendEvent(state, run, 'run.failed', run.error);
       return { accepted: false };
     }
@@ -208,7 +208,7 @@ export async function completeJob(store, input, now = Date.now()) {
     job.usageState = input.usageManaged ? 'part-managed' : input.usageKnown ? 'reported' : 'estimated';
     if (run.actualOutputTokens > run.budget.maxOutputTokens) {
       run.state = 'failed';
-      run.error = { code: 'BUDGET_EXCEEDED', message: '출력 한도를 초과한 후보를 폐기했습니다.' };
+      run.error = { code: 'BUDGET_EXCEEDED', message: 'The candidate exceeded the output limit and was discarded.' };
       job.state = 'failed';
       appendEvent(state, run, 'run.failed', run.error);
       return { accepted: false };

@@ -12,14 +12,14 @@ export function mountRepairRoutes(app, { store }) {
     let raw;
     try { raw = await context.req.json(); }
     catch (error) {
-      if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', '유효한 JSON 본문이 필요합니다.', 400);
+      if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', 'A valid JSON body is required.', 400);
       throw error;
     }
     const input = repairRunSchema.parse(raw);
     const config = providerConfig();
     const model = config.mode === 'openai-compatible' ? input.model ?? config.model : null;
     if (config.mode === 'openai-compatible' && model === null) {
-      throw new DomainError('MODEL_REQUIRED', '실행할 모델을 선택하세요.', 422);
+      throw new DomainError('MODEL_REQUIRED', 'Select a model to run.', 422);
     }
     const requestKey = z.uuid().parse(context.req.header('Idempotency-Key'));
     const requestHash = createHash('sha256').update(`${context.req.path}\n${JSON.stringify(input)}`).digest('hex');

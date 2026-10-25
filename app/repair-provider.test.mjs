@@ -23,7 +23,7 @@ test('one provider call repairs exactly the selected scenes and plans while reta
   assert.equal(fixture.requests[0].tools.every((tool) => /^[a-zA-Z0-9_-]{1,64}$/.test(tool.function.name)), true);
   assert.equal(run.actualOutputTokens, 40);
   assert.equal(run.model, 'selected-model');
-  assert.equal(run.runtime.modelLabel, 'OpenAI 호환 제공자 · selected-model');
+  assert.equal(run.runtime.modelLabel, 'OpenAI-compatible provider · selected-model');
   const proposal = state.changeSets.find((item) => item.id === run.resultRef);
   assert.equal(proposal.entries.filter((entry) => entry.kind === 'scene').length, 2);
   const scene = proposal.entries.find((entry) => entry.artifactId === 'scene-7');

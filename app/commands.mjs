@@ -6,14 +6,14 @@ import { assertActiveScope, assertReplayScope, branchHeader, resolveBranchScope 
 function replayRecord(state, request) {
   const existing = state.idempotency[request.key];
   if (!existing) return null;
-  if (existing.hash !== request.hash) throw new DomainError('IDEMPOTENCY_MISMATCH', '같은 키가 다른 요청에 사용되었습니다.', 409);
+  if (existing.hash !== request.hash) throw new DomainError('IDEMPOTENCY_MISMATCH', 'The same key was used for a different request.', 409);
   assertReplayScope(state, existing, request.scope);
   return existing;
 }
 
 export async function prepareCommand(store, context, input) {
   const key = z.uuid().safeParse(context.req.header('Idempotency-Key'));
-  if (!key.success) throw new DomainError('IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key UUID가 필요합니다.', 400);
+  if (!key.success) throw new DomainError('IDEMPOTENCY_KEY_REQUIRED', 'A UUID Idempotency-Key is required.', 400);
   const state = await store.read();
   const scope = resolveBranchScope(state, context.req.header(branchHeader));
   const request = { key: key.data, scope, hash: createHash('sha256').update(`${context.req.path}\n${JSON.stringify(input.body)}`).digest('hex') };

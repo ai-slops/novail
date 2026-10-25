@@ -7,20 +7,20 @@ import { publicState } from './queries.mjs';
 import { ancestorIds } from '../packages/revision/ancestry.mjs';
 
 function assertExpected(state, input) {
-  if (state.currentBranchId !== input.expectedBranchId) throw new DomainError('BRANCH_MISMATCH', '분기가 변경되었습니다. 현재 작업본을 다시 확인하세요.', 409);
-  if (state.head !== input.expectedHead) throw new DomainError('STALE_HEAD', '기준본이 변경되었습니다. 현재 작업본을 다시 확인하세요.', 409);
+  if (state.currentBranchId !== input.expectedBranchId) throw new DomainError('BRANCH_MISMATCH', 'The branch changed. Review the current workspace again.', 409);
+  if (state.head !== input.expectedHead) throw new DomainError('STALE_HEAD', 'The base version changed. Review the current workspace again.', 409);
 }
 
 export function createBranch(state, input) {
   assertExpected(state, input);
   const name = input.name.trim().normalize('NFC');
   if (state.branches.some((branch) => branch.name.toLocaleLowerCase('ko-KR') === name.toLocaleLowerCase('ko-KR'))) {
-    throw new DomainError('BRANCH_NAME_CONFLICT', '같은 이름의 분기가 이미 있습니다.', 409);
+    throw new DomainError('BRANCH_NAME_CONFLICT', 'A branch with this name already exists.', 409);
   }
   const source = getBranchSnapshot(state, input.sourceSnapshotId);
   const current = source.id === state.head;
   const context = current ? narrativeContext(state) : source.narrativeContext;
-  if (!context) throw new DomainError('SNAPSHOT_CONTEXT_UNAVAILABLE', '이전 버전에는 기획 맥락이 기록되지 않았습니다. 현재 기준본에서 분기를 만드세요.', 409);
+  if (!context) throw new DomainError('SNAPSHOT_CONTEXT_UNAVAILABLE', 'Planning context was not recorded for this older version. Create the branch from the current version.', 409);
   const scenes = current ? structuredClone(state.scenes) : source.sceneManifest.map((metadata) => ({ ...structuredClone(metadata), text: source.sceneTexts[metadata.id] }));
   const origin = activeBranch(state);
   const branch = { id: randomUUID(), name, headSnapshotId: source.id, sourceSnapshotId: source.id,
@@ -37,7 +37,7 @@ export function switchBranch(state, targetId, input) {
   assertExpected(state, input);
   assertIdleWorkspace(state);
   const target = state.branches.find((branch) => branch.id === targetId);
-  if (!target) throw new DomainError('NOT_FOUND', '이 작품의 분기를 찾을 수 없습니다.', 404);
+  if (!target) throw new DomainError('NOT_FOUND', 'Branch not found for this project.', 404);
   if (target.id === state.currentBranchId) return publicState(state);
   const origin = activeBranch(state);
   origin.workspace = captureWorkspace(state);

@@ -109,12 +109,12 @@ test("Given a protected quote, when a candidate removes it, then commit is rejec
   try {
     const before = await (await app.request("/api/state")).json();
     const scene = before.scenes.find((item) => item.id === "scene-7");
-    const quote = "상자는 배가 아니라 약속을 봉인한다";
+    const quote = "The box seals a promise, not a ship";
     await post(app, `/api/scenes/${scene.id}/protect`, { quote });
     const candidate = await (await post(app, "/api/candidates", {
       sceneId: scene.id,
-      instruction: "보호 문장을 제거해 주세요.",
-      proposedText: scene.text.replace(quote, "봉인은 침묵했다"),
+      instruction: "Remove the protected quote.",
+      proposedText: scene.text.replace(quote, "The seal fell silent"),
       baseSnapshotId: before.head,
     })).json();
     const response = await post(app, `/api/candidates/${candidate.id}/commit`, {

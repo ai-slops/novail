@@ -100,5 +100,5 @@ test('model discovery reports an unsupported catalog as an actionable endpoint e
 
   assert.equal(response.status, 502);
   assert.equal(body.error.code, 'MODEL_CATALOG_UNSUPPORTED');
-  assert.match(body.error.message, /직접 입력/);
+  assert.match(body.error.message, /Enter a model ID directly/);
 });

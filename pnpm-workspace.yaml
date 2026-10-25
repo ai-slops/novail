@@ -3,3 +3,10 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@slop-lab/part@0.1.0'
   - '@slop-lab/part-plugins@0.1.0'
+  - '@slop-lab/qg-check-runner@0.1.0'
+  - '@slop-lab/qg-core@0.1.0'
+  - '@slop-lab/qg-rules-files@0.1.0'
+  - '@slop-lab/qg-rules-git@0.1.0'
+  - '@slop-lab/qg-rules-js@0.1.0'
+  - '@slop-lab/qg-rules-recommended@0.1.0'
+  - '@slop-lab/qg@0.1.0'

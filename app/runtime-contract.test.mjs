@@ -33,7 +33,7 @@ test('runtime info exposes the stable part contract without provider configurati
   assert.equal(body.partVersion, '0.1.0');
   assert.equal(body.mode, 'openai-compatible');
   assert.equal(body.nonAI, false);
-  assert.deepEqual(body.model, { label: '실행할 모델을 선택하세요', defaultModel: null });
+  assert.deepEqual(body.model, { label: 'Select a model to run', defaultModel: null });
   assert.equal(body.publicBudget.defaults.maxModelCalls, 4);
   assert.equal(JSON.stringify(body).includes('runtime-secret'), false);
   assert.equal(JSON.stringify(body).includes('provider.invalid'), false);
@@ -56,7 +56,7 @@ test('run HTTP responses and public state exclude frozen inputs and lease creden
   const created = await command(app, '/api/repair-runs', {
     baseSnapshotId: state.head,
     baseWorkspaceHash: workspaceHash(await store.read()),
-    instruction: '안전한 공개 계약 확인',
+    instruction: 'Verify the safe public contract',
     sceneIds: ['scene-1'],
     planIds: [],
   }, { branchId: state.currentBranchId });
@@ -80,7 +80,7 @@ test('run HTTP responses and public state exclude frozen inputs and lease creden
   assert.equal(serialized.includes('leaseUntil'), false);
   assert.equal(serialized.includes('protectedQuotes'), false);
   assert.deepEqual(detail.runtime, {
-    name: 'part', version: '0.1.0', mode: 'local-demo', modelLabel: '로컬 예제 · AI 생성 아님 · part fakeModel',
+    name: 'part', version: '0.1.0', mode: 'local-demo', modelLabel: 'Local example (not AI) · part fakeModel',
   });
   const started = JSON.parse(events.split('\n').find((line) => line.startsWith('data: ') && line.includes('runtime.started')).slice(6));
   assert.deepEqual(started.details.runtime, detail.runtime);

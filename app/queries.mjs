@@ -30,7 +30,7 @@ export const publicState = (state) => {
 export const exportMarkdown = (state) => [
   `# ${state.project.title}`,
   state.project.subtitle ? `_${state.project.subtitle}_` : '',
-  ...state.scenes.flatMap((scene) => [`## ${scene.chapter}장. ${scene.title}`, scene.text]),
+  ...state.scenes.flatMap((scene) => [`## Chapter ${scene.chapter}. ${scene.title}`, scene.text]),
 ].filter(Boolean).join('\n\n');
 import { projectChangeSets } from '../packages/revision/changesets.mjs';
 import { workspaceHash } from '../packages/revision/workspace.mjs';

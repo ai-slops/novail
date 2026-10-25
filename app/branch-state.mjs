@@ -12,7 +12,7 @@ export const captureProject = (state) => structuredClone(Object.fromEntries(proj
 
 export function activeBranch(state) {
   const branch = state.branches.find((item) => item.id === state.currentBranchId);
-  if (!branch) throw new DomainError('BRANCH_STATE_INVALID', '활성 분기 정보를 찾을 수 없습니다.', 409);
+  if (!branch) throw new DomainError('BRANCH_STATE_INVALID', 'Active branch information is missing.', 409);
   return branch;
 }
 
@@ -22,11 +22,11 @@ export function validateBranches(state) {
     const ids = new Set(branch.snapshotIds);
     if (ids.size !== branch.snapshotIds.length || !ids.has(branch.headSnapshotId) || !ids.has(branch.sourceSnapshotId)
       || [...ids].some((id) => !catalog.has(id))) {
-      throw new DomainError('BRANCH_STATE_INVALID', '분기 스냅샷 참조가 일치하지 않습니다.', 409);
+      throw new DomainError('BRANCH_STATE_INVALID', 'Branch snapshot references are inconsistent.', 409);
     }
     const current = branch.id === state.currentBranchId;
     if (current ? Boolean(branch.workspace) || state.head !== branch.headSnapshotId : !branch.workspace) {
-      throw new DomainError('BRANCH_STATE_INVALID', '분기 작업 공간의 선택 상태가 일치하지 않습니다.', 409);
+      throw new DomainError('BRANCH_STATE_INVALID', 'The selected branch workspace state is inconsistent.', 409);
     }
   }
   activeBranch(state);
@@ -42,9 +42,9 @@ export function initializeProjectBranches(state) {
   state.mergePreviews ??= [];
   if (!state.branches) {
     const first = state.snapshots[0];
-    if (!first) throw new DomainError('BRANCH_STATE_INVALID', '기본 스냅샷이 없는 작품입니다.', 409);
+    if (!first) throw new DomainError('BRANCH_STATE_INVALID', 'The project has no initial snapshot.', 409);
     state.currentBranchId = mainBranchId(state.project.id);
-    state.branches = [{ id: state.currentBranchId, name: '주 작업본', headSnapshotId: state.head,
+    state.branches = [{ id: state.currentBranchId, name: 'Main workspace', headSnapshotId: state.head,
       sourceSnapshotId: first.id, sourceBranchId: null, createdAt: first.createdAt,
       snapshotIds: state.snapshots.map((snapshot) => snapshot.id) }];
   }
@@ -86,9 +86,9 @@ export function visibleSnapshots(state) {
 }
 
 export function getBranchSnapshot(state, id) {
-  if (!activeBranch(state).snapshotIds.includes(id)) throw new DomainError('NOT_FOUND', '이 분기의 스냅샷을 찾을 수 없습니다.', 404);
+  if (!activeBranch(state).snapshotIds.includes(id)) throw new DomainError('NOT_FOUND', 'Snapshot not found in this branch.', 404);
   const snapshot = state.snapshots.find((item) => item.id === id);
-  if (!snapshot) throw new DomainError('NOT_FOUND', '스냅샷을 찾을 수 없습니다.', 404);
+  if (!snapshot) throw new DomainError('NOT_FOUND', 'Snapshot not found.', 404);
   return snapshot;
 }
 
@@ -100,7 +100,7 @@ export const branchSummary = (state, branch) => ({
 
 export function assertIdleWorkspace(state) {
   if (state.runs.some((run) => ['queued', 'running', 'paused'].includes(run.state))) {
-    throw new DomainError('RUN_ACTIVE', '진행 중인 작업을 완료하거나 취소한 뒤 분기 또는 작품을 전환하세요.', 409);
+    throw new DomainError('RUN_ACTIVE', 'Complete or cancel active work before switching branches or projects.', 409);
   }
 }
 
@@ -109,6 +109,6 @@ export const isActiveRecord = (state, record) => (record.projectId === undefined
 
 export function assertRecordBranch(state, record) {
   if (!isActiveRecord(state, record)) {
-    throw new DomainError('BRANCH_MISMATCH', '다른 분기에서 만든 결과입니다. 원래 분기에서 검토하세요.', 409);
+    throw new DomainError('BRANCH_MISMATCH', 'This result was created in another branch. Review it in its original branch.', 409);
   }
 }

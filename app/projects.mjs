@@ -13,7 +13,7 @@ export function updateProject(state, input) {
     head: null, scenes: [], feedback: [], candidates: [], changeSets: [], evaluationReports: [], mergePreviews: [], plans: [], runs: [], jobs: [], runEvents: [],
     drafts: {}, dependencies: [], contextVersion: 0, editions: [],
   };
-  const snapshot = makeSnapshot(project, '새 프로젝트');
+  const snapshot = makeSnapshot(project, 'New project');
   project.head = snapshot.id;
   project.snapshots = [snapshot];
   initializeProjectBranches(project);
@@ -25,7 +25,7 @@ export function updateProject(state, input) {
 export function switchProject(state, projectId) {
   assertIdleWorkspace(state);
   const index = state.workspaces.findIndex((workspace) => workspace.project.id === projectId);
-  if (index < 0) throw new DomainError('NOT_FOUND', '프로젝트를 찾을 수 없습니다.', 404);
+  if (index < 0) throw new DomainError('NOT_FOUND', 'Project not found.', 404);
   const target = state.workspaces[index];
   initializeProjectBranches(target);
   state.workspaces.splice(index, 1, captureProject(state));

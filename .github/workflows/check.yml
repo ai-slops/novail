@@ -1,0 +1,24 @@
+name: Quality gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Install pinned pnpm
+        run: npm install --global pnpm@12.5.1
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check the full working tree, tests, and production build
+        run: pnpm check

@@ -17,7 +17,7 @@ function expireLease(state, lease) {
   lease.run.usageKnown = false;
   lease.run.state = 'failed';
   lease.run.error = { code: 'USAGE_UNKNOWN',
-    message: '호출 결과를 확인할 수 없습니다. 예약을 유지하며 명시적인 새 실행이 필요합니다.' };
+    message: 'The call result cannot be confirmed. The reservation is retained and an explicit new run is required.' };
   appendEvent(state, lease.run, 'run.failed', lease.run.error);
 }
 
@@ -36,14 +36,14 @@ export async function prepareModelAttempt(store, input, now = Date.now()) {
     const adoptedClaim = heldCalls === 0 && lease.run.reservedCalls > 0;
     if (!adoptedClaim) {
       if (lease.run.reservedCalls >= lease.run.budget.maxModelCalls) {
-        throw new RunError('BUDGET_EXCEEDED', '모델 호출 예산을 초과했습니다.', 409);
+        throw new RunError('BUDGET_EXCEEDED', 'The model call budget was exceeded.', 409);
       }
       lease.run.reservedCalls++;
     }
     const outstanding = lease.run.reservedOutputTokens ?? 0;
     const remaining = lease.run.budget.maxOutputTokens - lease.run.actualOutputTokens - outstanding;
     const reservedOutputTokens = Math.min(input.requestedOutputTokens, remaining);
-    if (reservedOutputTokens < 1) throw new RunError('BUDGET_EXCEEDED', '출력 토큰 예산을 초과했습니다.', 409);
+    if (reservedOutputTokens < 1) throw new RunError('BUDGET_EXCEEDED', 'The output token budget was exceeded.', 409);
     lease.run.reservedOutputTokens = outstanding + reservedOutputTokens;
     lease.job.modelAttempts.push({ id: input.attemptId, adoptedClaim, reservedOutputTokens, holdsCall: true,
       state: 'reserved', createdAt: new Date().toISOString() });
@@ -52,7 +52,7 @@ export async function prepareModelAttempt(store, input, now = Date.now()) {
     });
     return { ok: true, value: { adoptedClaim, reservedOutputTokens } };
   });
-  if (!result.ok) throw new RunError('LEASE_LOST', '실행 임대가 만료되었거나 취소되었습니다.', 409);
+  if (!result.ok) throw new RunError('LEASE_LOST', 'The run lease expired or was cancelled.', 409);
   return result.value;
 }
 
@@ -90,7 +90,7 @@ export async function settleModelAttempt(store, input) {
     if (lease.run.actualKnownTokens > lease.run.budget.maxKnownTokens
       || lease.run.actualOutputTokens > lease.run.budget.maxOutputTokens) {
       lease.run.state = 'failed';
-      lease.run.error = { code: 'BUDGET_EXCEEDED', message: '실행 토큰 예산을 초과했습니다.' };
+      lease.run.error = { code: 'BUDGET_EXCEEDED', message: 'The run token budget was exceeded.' };
       lease.job.state = 'failed';
       lease.job.usageState = input.outputTokens === undefined ? 'estimated' : 'reported';
       appendEvent(state, lease.run, 'run.failed', lease.run.error);

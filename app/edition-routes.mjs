@@ -29,7 +29,7 @@ async function exportResponse(context, document, options) {
       context.header('Content-Disposition', `attachment; filename="${filename}.manifest.json"`);
       return context.json(options.edition ? { ...options.manifest, edition: options.edition } : options.manifest);
     default:
-      throw new DomainError('SCHEMA_INVALID', '지원하지 않는 내보내기 형식입니다.', 422);
+      throw new DomainError('SCHEMA_INVALID', 'Unsupported export format.', 422);
   }
 }
 
@@ -62,7 +62,7 @@ export function mountEditionRoutes(app, { store, command }) {
     let body;
     try { body = await context.req.json(); }
     catch (error) {
-      if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', '유효한 JSON 본문이 필요합니다.', 400);
+      if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', 'A valid JSON body is required.', 400);
       throw error;
     }
     const input = publishSchema.parse(body);

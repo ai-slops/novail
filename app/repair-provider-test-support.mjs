@@ -115,7 +115,7 @@ export async function providerFixture(t, transform, options = {}) {
   });
   const state = await readState(fixture.app);
   const input = { baseSnapshotId: state.head, baseWorkspaceHash: workspaceHash(await fixture.store.read()),
-    instruction: '선택과 결과를 함께 보강', model: options.model ?? 'selected-model', sceneIds: options.sceneIds ?? ['scene-1', 'scene-7'],
+    instruction: 'Strengthen both the choice and its consequences', model: options.model ?? 'selected-model', sceneIds: options.sceneIds ?? ['scene-1', 'scene-7'],
     planIds: options.planIds ?? ['plan-plot'], feedbackIds: [],
     budget: options.budget ?? { maxModelCalls: 2, maxOutputTokens: 2048 } };
   runtimeWorker = createApplicationWorker(fixture.store);
@@ -123,8 +123,8 @@ export async function providerFixture(t, transform, options = {}) {
 }
 
 export const completePatches = (input) => ({
-  scenes: input.scenes.map((scene) => ({ id: scene.id, text: `${scene.text}\n새로운 결심이 남았다.` })),
-  plans: input.plans.map((plan) => ({ id: plan.id, description: `${plan.description}\n선택의 결과를 확인한다.` })),
+  scenes: input.scenes.map((scene) => ({ id: scene.id, text: `${scene.text}\nA new resolve remained.` })),
+  plans: input.plans.map((plan) => ({ id: plan.id, description: `${plan.description}\nConfirm the consequences of the choice.` })),
 });
 
 export async function runRepair(fixture) {

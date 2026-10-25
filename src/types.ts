@@ -115,5 +115,13 @@ export type WorkspaceState = Readonly<{
 
 export const workspaceTabs = ["원고", "기획 보드", "타임라인", "개정 검토", "에이전트 실행", "버전 기록"] as const
 export type WorkspaceTab = (typeof workspaceTabs)[number]
+export const workspaceTabLabels: Readonly<Record<WorkspaceTab, string>> = {
+  원고: "Manuscript",
+  "기획 보드": "Planning board",
+  타임라인: "Timeline",
+  "개정 검토": "Revisions",
+  "에이전트 실행": "Agent runs",
+  "버전 기록": "Versions",
+}
 export type ModalKind = "project" | "scene" | "plan" | null
 export type Notice = Readonly<{ tone: "success" | "error"; text: string }>

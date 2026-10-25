@@ -21,8 +21,8 @@ const guarded = (handler) => async (context) => {
   try { return await handler(context); }
   catch (error) {
     if (error instanceof RunError || error instanceof DomainError) return context.json({ error: { code: error.code, message: error.message } }, error.status);
-    if (error instanceof z.ZodError) return context.json({ error: { code: 'SCHEMA_INVALID', message: '입력 형식을 확인하세요.', details: error.issues } }, 422);
-    if (error instanceof SyntaxError) return context.json({ error: { code: 'SCHEMA_INVALID', message: '유효한 JSON이 필요합니다.' } }, 422);
+    if (error instanceof z.ZodError) return context.json({ error: { code: 'SCHEMA_INVALID', message: 'Check the input format.', details: error.issues } }, 422);
+    if (error instanceof SyntaxError) return context.json({ error: { code: 'SCHEMA_INVALID', message: 'Valid JSON is required.' } }, 422);
     throw error;
   }
 };
@@ -39,7 +39,7 @@ export function mountRunRoutes(app, { store, worker }) {
     const config = providerConfig();
     const model = config.mode === 'openai-compatible' ? input.model ?? config.model : null;
     if (config.mode === 'openai-compatible' && model === null) {
-      throw new RunError('MODEL_REQUIRED', '실행할 모델을 선택하세요.', 422);
+      throw new RunError('MODEL_REQUIRED', 'Select a model to run.', 422);
     }
     const run = await enqueueRun(store, { ...input, ...(model ? { model } : {}), ...requestIdentity(context, input) });
     return context.json(safeRunSummary(run), 202);
@@ -54,7 +54,7 @@ export function mountRunRoutes(app, { store, worker }) {
     const state = await store.read();
     assertReadScope(state, context.req.header(branchHeader));
     const run = state.runs.find((item) => item.id === context.req.param('id') && item.queueManaged);
-    if (!run) throw new RunError('NOT_FOUND', '작업을 찾을 수 없습니다.', 404);
+    if (!run) throw new RunError('NOT_FOUND', 'Agent run not found.', 404);
     assertRecordBranch(state, run);
     return context.json(safeRunDetail(run, (state.jobs ?? []).filter((job) => job.runId === run.id)));
   }));
@@ -70,11 +70,11 @@ export function mountRunRoutes(app, { store, worker }) {
     const state = await store.read();
     assertReadScope(state, context.req.header(branchHeader));
     const id = context.req.param('id');
-    if (!state.runs.some((run) => run.id === id && run.queueManaged)) throw new RunError('NOT_FOUND', '작업을 찾을 수 없습니다.', 404);
+    if (!state.runs.some((run) => run.id === id && run.queueManaged)) throw new RunError('NOT_FOUND', 'Agent run not found.', 404);
     const events = (state.runEvents ?? []).filter((event) => event.runId === id);
     const lastId = context.req.header('Last-Event-ID');
     let cursor = lastId ? events.findIndex((event) => event.id === lastId) : -1;
-    if (lastId && cursor < 0) throw new RunError('EVENT_CURSOR_EXPIRED', '작업 상태를 다시 조회하세요.', 409);
+    if (lastId && cursor < 0) throw new RunError('EVENT_CURSOR_EXPIRED', 'Reload the agent run status.', 409);
     return streamSSE(context, async (stream) => {
       while (!stream.aborted) {
         const latest = await store.read();

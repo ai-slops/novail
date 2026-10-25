@@ -17,7 +17,7 @@ type CriterionHistory = Readonly<{
 
 class CitationBuildError extends Error {
   readonly name = "CitationBuildError"
-  constructor() { super("선택한 인용 범위를 기록할 수 없습니다.") }
+  constructor() { super("Could not record the selected citation range.") }
 }
 
 export function editCriterionText(criterion: EvaluationCriterion, text: string): EvaluationCriterion {
@@ -57,9 +57,9 @@ export async function buildCitation(selection: CitationSelection): Promise<Evalu
 
 export function validateCriterion(criterion: EvaluationCriterion): readonly string[] {
   const errors: string[] = []
-  if (!criterion.text.trim()) errors.push("평가 기준을 입력하세요.")
-  if (!criterion.rationale.trim()) errors.push("판단 근거를 입력하세요.")
-  if (criterion.verdict !== "unknown" && criterion.citations.length === 0) errors.push("이전 또는 제안 원문에서 인용을 추가하세요.")
+  if (!criterion.text.trim()) errors.push("Enter an evaluation criterion.")
+  if (!criterion.rationale.trim()) errors.push("Enter the rationale for this judgment.")
+  if (criterion.verdict !== "unknown" && criterion.citations.length === 0) errors.push("Add a citation from the before or proposal text.")
   return errors
 }
 
@@ -74,9 +74,9 @@ export function evaluationDraftChanged(baseline: readonly EvaluationCriterion[],
 
 export function formulationLabel(formulation: EvaluationCriterion["formulation"]): string {
   switch (formulation) {
-    case "verbatim_source": return "근거 원문 그대로"
-    case "human_refinement": return "사람이 다듬은 기준"
-    case "human_authored": return "사람이 작성한 기준"
+    case "verbatim_source": return "Verbatim source"
+    case "human_refinement": return "Human-refined criterion"
+    case "human_authored": return "Human-authored criterion"
     default: { const exhaustive: never = formulation; return exhaustive }
   }
 }

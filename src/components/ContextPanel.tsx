@@ -29,22 +29,63 @@ export function ContextPanel(props: ContextProps) {
   const active = props.candidates.findLast((candidate) => candidate.status === "pending") ?? props.candidates.at(-1)
   const activeV2 = props.changeSets.findLast((changeSet) => changeSet.status === "pending") ?? props.changeSets.at(-1)
   const submit = async () => { if (!text.trim()) return; const succeeded = await props.onSubmit(text.trim(), scope); if (succeeded) setText("") }
-  const resolve = (feedback: Feedback, decision: "close" | "defer" | "reopen") => { const note = window.prompt("이 판단의 근거를 짧게 남겨 주세요. 빈 메모는 저장되지 않습니다.", ""); if (!note?.trim()) return; void props.onResolve(feedback, decision, note.trim()) }
+  const resolve = (feedback: Feedback, decision: "close" | "defer" | "reopen") => { const note = window.prompt("Briefly explain this decision. Empty notes are not saved.", ""); if (!note?.trim()) return; void props.onResolve(feedback, decision, note.trim()) }
   return (
-    <aside className={`context-panel ${props.open ? "is-open" : ""}`} aria-label="문맥과 피드백">
-      <div className="panel-heading"><div><p className="overline">EDITORIAL CONTEXT</p><h2>문맥과 피드백</h2></div><button className="icon-button mobile-only" type="button" onClick={props.onClose} aria-label="패널 닫기"><X /></button></div>
+    <aside className={`context-panel ${props.open ? "is-open" : ""}`} aria-label="Context and feedback">
+      <div className="panel-heading"><div><p className="overline">EDITORIAL CONTEXT</p><h2>Context and feedback</h2></div><button className="icon-button mobile-only" type="button" onClick={props.onClose} aria-label="Close panel"><X /></button></div>
       <div className={`provider-note ${props.settings.providerConfigured ? "live" : "demo"}`}>
-        <Bot /><div><strong>{props.settings.providerConfigured ? "모델 제공자 설정됨" : "데모 제안 모드"}</strong><p>{props.settings.providerConfigured ? "실제 연결과 사용량은 실행 결과에서 확인합니다." : "제안은 규칙 기반 예시이며 자동 반영되지 않습니다."}</p></div>
+        <Bot /><div><strong>{props.settings.providerConfigured ? "Model provider configured" : "Local example mode"}</strong><p>{props.settings.providerConfigured ? "Check the run result for the actual connection and usage." : "Suggestions are rule-based examples and are never applied automatically."}</p></div>
       </div>
-      <section className="context-section"><div className="section-title"><span>장면 맥락</span><ChevronRight /></div><p className="scene-summary">{props.scene.summary}</p><div className="fact-grid"><span>시점<strong>{props.scene.storyTime}</strong></span><span>등장인물<strong>{props.scene.characters.join(", ") || "없음"}</strong></span></div></section>
-      <section className="context-section"><div className="section-title"><span>새 피드백</span><MessageSquareText /></div><label className="field-label" htmlFor="feedback">편집 의도</label><textarea id="feedback" className="feedback-input" value={text} onChange={(event) => setText(event.target.value)} placeholder="이 장면에서 고치고 싶은 점을 적으세요." /><div className="submit-row"><select value={scope} onChange={(event) => setScope(event.target.value)} aria-label="피드백 범위"><option value="scene">장면</option><option value="chapter">장</option><option value="project">작품 전체</option></select><button className="button primary" type="button" disabled={props.busy || !text.trim()} onClick={submit}><Send /> 등록 후 범위 선택</button></div><p className="branch-help">피드백 범위를 기록한 뒤 실제로 수정할 장면과 기획을 직접 선택합니다.</p></section>
-      {activeV2 ? <section className="candidate-card v2-summary"><div className="candidate-label"><span><ShieldCheck /> V2 변경 제안 · {activeV2.status}</span><small>{activeV2.reason}</small></div><p>{activeV2.entries.length}개 변경 · 영향 검토 {activeV2.impact.reviewSet.length}건</p><button className="button primary" type="button" onClick={props.onOpenReview}>개정 검토 열기</button></section> : active ? <CandidateCard candidate={active} busy={props.busy} onCommit={props.onCommit} onReject={props.onReject} /> : <div className="empty-review"><ShieldCheck /><strong>검토 대기 중인 편집안이 없습니다</strong><p>피드백을 남기거나 원고를 직접 편집해 새 편집안을 만드세요.</p></div>}
-      <section className="feedback-history"><div className="section-title"><span>피드백 이력</span><strong>{props.feedback.length}</strong></div>{props.feedback.toReversed().map((item) => <article key={item.id}><span className="state-dot" /><p>{item.text}</p><small>{item.scope} · {item.state}</small><div className="feedback-actions"><button type="button" disabled={props.busy} onClick={() => props.onRepair(item)}>개정 제안</button><button type="button" disabled={props.busy} onClick={() => resolve(item, "close")}>닫기</button><button type="button" disabled={props.busy} onClick={() => resolve(item, "defer")}>보류</button>{item.state !== "open" ? <button type="button" disabled={props.busy} onClick={() => resolve(item, "reopen")}>다시 열기</button> : null}</div></article>)}</section>
+      <section className="context-section"><div className="section-title"><span>Scene context</span><ChevronRight /></div><p className="scene-summary">{props.scene.summary}</p><div className="fact-grid"><span>Story time<strong>{props.scene.storyTime}</strong></span><span>Characters<strong>{props.scene.characters.join(", ") || "None"}</strong></span></div></section>
+      <section className="context-section">
+        <div className="section-title"><span>New feedback</span><MessageSquareText /></div>
+        <label className="field-label" htmlFor="feedback">Editorial intent</label>
+        <textarea id="feedback" className="feedback-input" value={text} onChange={(event) => setText(event.target.value)} placeholder="Describe what you want to improve in this scene." />
+        <div className="submit-row">
+          <select value={scope} onChange={(event) => setScope(event.target.value)} aria-label="Feedback scope">
+            <option value="scene">Scene</option><option value="chapter">Chapter</option><option value="project">Entire project</option>
+          </select>
+          <button className="button primary" type="button" disabled={props.busy || !text.trim()} onClick={submit}><Send /> Save and choose scope</button>
+        </div>
+        <p className="branch-help">After recording the feedback scope, choose the scenes and plans to revise.</p>
+      </section>
+      {activeV2 ? <section className="candidate-card v2-summary">
+        <div className="candidate-label"><span><ShieldCheck /> V2 change set · {activeV2.status}</span><small>{activeV2.reason}</small></div>
+        <p>{activeV2.entries.length} changes · {activeV2.impact.reviewSet.length} impact reviews</p>
+        <button className="button primary" type="button" onClick={props.onOpenReview}>Open Revisions</button>
+      </section> : active ? <CandidateCard candidate={active} busy={props.busy} onCommit={props.onCommit} onReject={props.onReject} /> : <div className="empty-review">
+        <ShieldCheck /><strong>No edits awaiting review</strong><p>Leave feedback or edit the manuscript directly to create a new change set.</p>
+      </div>}
+      <section className="feedback-history">
+        <div className="section-title"><span>Feedback history</span><strong>{props.feedback.length}</strong></div>
+        {props.feedback.toReversed().map((item) => <article key={item.id}>
+          <span className="state-dot" /><p>{item.text}</p><small>{item.scope} · {item.state}</small>
+          <div className="feedback-actions">
+            <button type="button" disabled={props.busy} onClick={() => props.onRepair(item)}>Propose revision</button>
+            <button type="button" disabled={props.busy} onClick={() => resolve(item, "close")}>Close</button>
+            <button type="button" disabled={props.busy} onClick={() => resolve(item, "defer")}>Defer</button>
+            {item.state !== "open" ? <button type="button" disabled={props.busy} onClick={() => resolve(item, "reopen")}>Reopen</button> : null}
+          </div>
+        </article>)}
+      </section>
     </aside>
   )
 }
 
 function CandidateCard({ candidate, busy, onCommit, onReject }: Readonly<{ candidate: Candidate; busy: boolean; onCommit: (value: Candidate) => Promise<void>; onReject: (value: Candidate) => Promise<void> }>) {
   const actionable = candidate.status === "pending"
-   return <section className="candidate-card"><div className="candidate-label"><span><AlertCircle /> 이전 형식 V1 · {candidate.status}</span><small>{candidate.reason}</small></div><div className="diff-block before"><span>이전</span><p>{candidate.before}</p></div><div className="diff-arrow"><ArrowRight /></div><div className="diff-block after"><span>제안</span><p>{candidate.after}</p></div>{candidate.reviewSet.length > 0 ? <div className="impact-list"><strong>영향 검토 {candidate.reviewSet.length}건</strong>{candidate.reviewSet.map((item) => <span key={`${item.sceneId}-${item.title}`}><Check /> {item.title} · {item.reason}</span>)}</div> : null}{actionable ? <div className="candidate-actions"><button className="button quiet" type="button" disabled={busy} onClick={() => onReject(candidate)}><X /> 거절</button><button className="button primary" type="button" disabled={busy} onClick={() => onCommit(candidate)}><Check /> V2 검토로 이동</button></div> : null}</section>
+   return <section className="candidate-card">
+     <div className="candidate-label"><span><AlertCircle /> Legacy V1 · {candidate.status}</span><small>{candidate.reason}</small></div>
+     <div className="diff-block before"><span>Before</span><p>{candidate.before}</p></div>
+     <div className="diff-arrow"><ArrowRight /></div>
+     <div className="diff-block after"><span>Proposal</span><p>{candidate.after}</p></div>
+     {candidate.reviewSet.length > 0 ? <div className="impact-list">
+       <strong>{candidate.reviewSet.length} impact reviews</strong>
+       {candidate.reviewSet.map((item) => <span key={`${item.sceneId}-${item.title}`}><Check /> {item.title} · {item.reason}</span>)}
+     </div> : null}
+     {actionable ? <div className="candidate-actions">
+       <button className="button quiet" type="button" disabled={busy} onClick={() => onReject(candidate)}><X /> Reject</button>
+       <button className="button primary" type="button" disabled={busy} onClick={() => onCommit(candidate)}><Check /> Move to V2 review</button>
+     </div> : null}
+   </section>
 }

@@ -35,7 +35,7 @@ type ViewProps = Readonly<{
 }>
 
 export function WorkspaceViews(props: ViewProps) {
-  if (props.tab === "원고") return <main className="secondary-view" id="main-content"><ViewHeader eyebrow="YOUR FIRST SCENE" title="첫 장면을 시작하세요" /><div className="empty-review"><p>아직 원고가 없습니다. 첫 문장이나 장면 메모로 이야기를 시작할 수 있습니다.</p><button className="button primary" type="button" onClick={props.onNewScene}>첫 장면 만들기</button></div></main>
+  if (props.tab === "원고") return <main className="secondary-view" id="main-content"><ViewHeader eyebrow="YOUR FIRST SCENE" title="Start your first scene" /><div className="empty-review"><p>There is no manuscript yet. Begin with an opening line or a scene note.</p><button className="button primary" type="button" onClick={props.onNewScene}>Create first scene</button></div></main>
   if (props.tab === "기획 보드") return <PlanningBoard {...props} />
   if (props.tab === "타임라인") return <Timeline {...props} />
   if (props.tab === "개정 검토") return <RevisionWorkspace changeSets={props.changeSets} candidates={props.candidates} branchId={props.currentBranchId} head={props.head} selectedChangeSetId={props.selectedChangeSetId} busy={props.busy} onRefresh={props.onRevisionRefresh} onDirtyChange={props.onDirtyChange} onBeforeDiscard={props.onBeforeDiscard} onScene={props.onScene} />
@@ -49,7 +49,20 @@ function ViewHeader({ eyebrow, title, action }: Readonly<{ eyebrow: string; titl
 
 function PlanningBoard(props: ViewProps) {
   const groups = ["진행 전", "작업 중", "완료"] as const
-  return <main className="secondary-view"><ViewHeader eyebrow="STORY ARCHITECTURE" title="기획 보드" action={<button className="button primary" type="button" onClick={props.onPlan}><ListTodo /> 새 기획</button>} /><div className="board-grid">{groups.map((group) => <section className="board-column" key={group}><h3>{group}<span>{props.plans.filter((plan) => normalizePlan(plan.status) === group).length}</span></h3>{props.plans.filter((plan) => normalizePlan(plan.status) === group).map((plan) => <article key={plan.id}><small>{plan.kind}</small><strong>{plan.title}</strong><p>{plan.description}</p></article>)}</section>)}</div></main>
+  const groupLabels: Readonly<Record<(typeof groups)[number], string>> = { "진행 전": "Not started", "작업 중": "In progress", 완료: "Complete" }
+  return <main className="secondary-view">
+    <ViewHeader
+      eyebrow="STORY ARCHITECTURE"
+      title="Planning board"
+      action={<button className="button primary" type="button" onClick={props.onPlan}><ListTodo /> New plan</button>}
+    />
+    <div className="board-grid">{groups.map((group) => <section className="board-column" key={group}>
+      <h3>{groupLabels[group]}<span>{props.plans.filter((plan) => normalizePlan(plan.status) === group).length}</span></h3>
+      {props.plans.filter((plan) => normalizePlan(plan.status) === group).map((plan) => <article key={plan.id}>
+        <small>{plan.kind}</small><strong>{plan.title}</strong><p>{plan.description}</p>
+      </article>)}
+    </section>)}</div>
+  </main>
 }
 
 function normalizePlan(status: string): "진행 전" | "작업 중" | "완료" {
@@ -59,5 +72,5 @@ function normalizePlan(status: string): "진행 전" | "작업 중" | "완료" {
 }
 
 function Timeline(props: ViewProps) {
-  return <main className="secondary-view"><ViewHeader eyebrow="NARRATIVE TIME" title="이야기 타임라인" /><div className="timeline-line">{props.scenes.map((scene, index) => <button key={scene.id} type="button" onClick={() => props.onScene(scene.id)}><span className="timeline-node">{index + 1}</span><small>{scene.storyTime}</small><strong>{scene.title}</strong><p>{scene.summary}</p><span className="character-row">{scene.characters.join(" · ")}</span></button>)}</div></main>
+  return <main className="secondary-view"><ViewHeader eyebrow="NARRATIVE TIME" title="Story timeline" /><div className="timeline-line">{props.scenes.map((scene, index) => <button key={scene.id} type="button" onClick={() => props.onScene(scene.id)}><span className="timeline-node">{index + 1}</span><small>{scene.storyTime}</small><strong>{scene.title}</strong><p>{scene.summary}</p><span className="character-row">{scene.characters.join(" · ")}</span></button>)}</div></main>
 }

@@ -75,6 +75,6 @@ test('diagnostic labels explain provider stages and retry policy without provide
   // Given: a typed provider HTTP failure that is not retryable
   // When: human-facing labels are selected
   // Then: the labels explain the stage and next action
-  assert.equal(diagnosticStageLabel('provider_http'), '제공자 요청 거절');
-  assert.equal(retryGuidance(false), '같은 설정으로 다시 실행해도 해결되지 않습니다. 모델과 API 프로토콜 설정을 확인하세요.');
+  assert.equal(diagnosticStageLabel('provider_http'), 'Provider request rejected');
+  assert.equal(retryGuidance(false), 'Retrying with the same settings will not resolve this. Check the model and API protocol configuration.');
 });

@@ -13,10 +13,10 @@ const responseSchema = z.looseObject({
 const demoRewrite = (scene, instruction) => ({
   text: scene.id === "scene-7"
     ? scene.text.replace(
-      "선택의 대가는 숨는 것이 아니라, 훗날 그 기록 앞에 다시 서는 일이었다.",
-      instruction.includes("동기")
-        ? "리라의 선택은 숨기 위한 도주가 아니었다. 자신의 이름으로 쇠사슬을 푼 책임을 남기고, 훗날 그 기록 앞에 다시 서겠다는 결의였다."
-        : "선택의 대가는 숨는 것이 아니라, 자신의 이름으로 남긴 기록 앞에 훗날 다시 서는 일이었다.",
+      "The price of her choice was not hiding, but one day standing before that record again.",
+      (instruction.toLowerCase().includes("motivation") || instruction.includes("\uB3D9\uAE30"))
+        ? "Lira's choice was not an escape into hiding. She would leave a record of taking responsibility for unfastening the chains in her own name, and one day stand before that record again."
+        : "The price of her choice was not hiding, but one day standing before the record she had left in her own name.",
     )
     : scene.text,
   adapterLabel: "local-demo (deterministic, not an LLM)",
@@ -28,7 +28,7 @@ export const generateCandidate = async ({ scene, instruction, proposedText, sign
   const config = providerConfig();
   if (config.mode === 'local-demo') return demoRewrite(scene, instruction);
   const selectedModel = model ?? config.model;
-  if (selectedModel === null) throw new DomainError('MODEL_REQUIRED', '실행할 모델을 선택하세요.', 422);
+  if (selectedModel === null) throw new DomainError('MODEL_REQUIRED', 'Select a model to run.', 422);
 
   try {
     const raw = await ky.post(`${config.baseUrl}/chat/completions`, {
@@ -60,7 +60,7 @@ export const generateCandidate = async ({ scene, instruction, proposedText, sign
   } catch (error) {
     throw new DomainError(
       "PROVIDER_FAILURE",
-      `설정된 생성 제공자가 유효한 후보를 반환하지 못했습니다: ${error instanceof Error ? error.message : "unknown error"}`,
+      `The configured generation provider did not return a valid candidate: ${error instanceof Error ? error.message : "unknown error"}`,
       502,
     );
   }

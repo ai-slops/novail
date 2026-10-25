@@ -1,0 +1,39 @@
+presets: [js-test-fixtures]
+ruleModules: [./scripts/qg-rules.mjs]
+
+artifacts:
+  generated:
+    include: [".playwright-mcp/**", "test-results/**"]
+
+rules:
+  git/no-tracked-local-files: error
+  docs/valid-reference: error
+  markdown/allowed-characters: error
+  qg/require-suppression-reason: error
+  test/no-directory-fixture-copy: error
+  package-manager/no-npm-lock-with-pnpm: error
+  pnpm/lockfile-is-current: error
+
+hooks:
+  preCommit:
+    installation: check
+
+checks:
+  - name: typecheck
+    type: command
+    command: pnpm
+    args: [typecheck]
+    timeoutMs: 120000
+    message: Fix TypeScript errors before committing.
+  - name: tests
+    type: command
+    command: pnpm
+    args: [test]
+    timeoutMs: 120000
+    message: Fix failing behavior tests before committing.
+  - name: build
+    type: command
+    command: pnpm
+    args: [build]
+    timeoutMs: 120000
+    message: Fix the production build before committing.

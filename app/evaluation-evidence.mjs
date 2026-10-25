@@ -4,7 +4,7 @@ import { evaluationCriterionSchema } from "../packages/revision/evaluation-contr
 import { validateSpan } from "../packages/domain/narrative.ts";
 import { DomainError } from "./errors.mjs";
 
-const unknownRationale = "아직 사람이 평가하지 않았습니다.";
+const unknownRationale = "Not yet evaluated by a human.";
 const hashText = (text) => createHash("sha256").update(text).digest("hex");
 const failEvidence = (message) => { throw new DomainError("EVIDENCE_INVALID", message, 422); };
 
