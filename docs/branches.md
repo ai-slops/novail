@@ -1,99 +1,100 @@
-# 작업 분기 계약
+# Working Branch Contract
 
-## 분기와 보존 범위
+## Branches and retained scope
 
-한 작품은 공유하는 불변 스냅샷 목록과 여러 작업 분기를 가집니다. 각 분기는 자신의 head와 조회 가능한 스냅샷 ID 목록을 가리킵니다. 분기 생성만으로 스냅샷 원문을 다시 만들거나 현재 분기를 바꾸지 않습니다.
+A work has one shared list of immutable snapshots and multiple working branches. Each branch points to its own head and list of visible snapshot IDs. Creating a branch neither recreates snapshot content nor switches the current branch.
 
-분기별 작업 공간은 다음을 보존합니다.
+Each branch workspace preserves:
 
-- 채택 원고와 보호 문장, 기획, 의존성, 맥락 버전
-- 저장한 미채택 초안, 피드백, 수정 후보
-- Run, Job, 실행 이벤트와 사용량 기록
+- Adopted manuscript text, protected prose, plans, dependencies, and context versions
+- Saved unadopted drafts, feedback, and revision candidates
+- Runs, Jobs, execution events, and usage records
 
-현재 분기는 기존 최상위 작업 공간에 표시하고, 비활성 분기의 작업 공간은 해당 분기 안에 보관합니다. 전환은 짧은 저장 트랜잭션 안에서 이루어집니다. `head`는 항상 현재 분기의 `headSnapshotId`와 같습니다.
+The current branch appears in the existing top-level workspace; inactive workspaces remain stored under their branches. Switching occurs in a short storage transaction. `head` always equals the current branch's `headSnapshotId`.
 
-발행 판본은 **작품 단위의 공유 불변 기록**입니다. 다른 분기로 바꿔도 기존 판본을 읽고 내려받을 수 있으며, 새 판본에는 `sourceBranchId`를 추가로 남깁니다. 이전 판본의 manifest/hash를 다시 쓰지는 않습니다.
+Published editions are **shared immutable records at the work level**. They remain readable and downloadable after switching branches, and each new edition records `sourceBranchId`. Existing edition manifests and hashes are never rewritten.
 
-## 새 분기의 시작점
+## Starting point for a new branch
 
-- 현재 head에서 만들면 현재 분기의 채택 원고·기획·보호 조건을 복사합니다.
-- 과거 스냅샷에서 만들면 당시 기록된 `narrativeContext`와 원고를 사용합니다. 뒤에 추가한 계획이 섞이지 않습니다.
-- 저장된 초안, 피드백, 후보, 실행·작업 기록은 새 분기에 복사하지 않습니다. 원래 분기에 남아 있습니다.
-- 분기를 만든 뒤 전환 여부는 사람이 별도로 결정합니다.
-- 과거 기획 맥락이 없는 구버전 스냅샷은 `SNAPSHOT_CONTEXT_UNAVAILABLE`로 차단합니다. 현재 head는 실제 작업 맥락을 알고 있으므로 구버전에서도 분기할 수 있습니다.
+- Creating from the current head copies the current branch's adopted manuscript, plans, and protection requirements.
+- Creating from a past snapshot uses the manuscript and `narrativeContext` recorded at that time. Plans added later are not mixed in.
+- Saved drafts, feedback, candidates, Agent runs, and Job records are not copied. They remain on the source branch.
+- A human decides separately whether to switch after creating the branch.
+- A legacy snapshot without historical planning context is blocked with `SNAPSHOT_CONTEXT_UNAVAILABLE`. The current head can still be branched because its actual working context is known, even when it originated from a legacy version.
 
-기존 **원고 복원**은 선택한 스냅샷의 장면 원문을 새 commit으로 만드는 동작입니다. 없는 과거 기획 맥락까지 복원했다고 주장하지 않습니다. 복원 후 생성되는 새 스냅샷에는 현재 분기의 실제 기획 맥락을 기록합니다.
+The existing **Restore manuscript** operation creates a new commit from the selected snapshot's scene text. It does not claim to restore missing historical planning context. The new snapshot created after restoration records the current branch's actual planning context.
 
 ## API
 
-`GET /api/state`는 `currentBranchId`, `branches`, 현재 분기의 스냅샷·초안·후보·실행 기록을 반환합니다. 스냅샷의 `canBranch`로 안전하게 분기할 수 있는지 확인합니다.
+`GET /api/state` returns `currentBranchId`, `branches`, and the current branch's snapshots, drafts, candidates, and Agent runs. Use a snapshot's `canBranch` field to determine whether branching is safe.
 
-### 생성
+### Create
 
-`POST /api/branches`, `Idempotency-Key`와 `X-Novail-Branch-Id` 헤더:
+`POST /api/branches` with `Idempotency-Key` and `X-Novail-Branch-Id` headers:
 
 ```json
 {
-  "name": "다른 결말",
-  "sourceSnapshotId": "<현재 분기에서 조회한 snapshot>",
-  "expectedBranchId": "<현재 분기 id>",
-  "expectedHead": "<검토한 head>"
+  "name": "Alternate Ending",
+  "sourceSnapshotId": "<Snapshot read from the current branch>",
+  "expectedBranchId": "<current branch id>",
+  "expectedHead": "<reviewed head>"
 }
 ```
 
-201로 새 분기 요약을 반환합니다. 이름은 작품 안에서 중복되지 않아야 하며, 생성 후에도 현재 분기는 유지됩니다.
+A `201` response returns the new branch summary. Names must be unique within the work, and the current branch remains unchanged.
 
-### 전환
+### Switch
 
 `POST /api/branches/{target_id}/switch`:
 
 ```json
 {
-  "expectedBranchId": "<전환 전 분기 id>",
-  "expectedHead": "<전환 전 head>"
+  "expectedBranchId": "<branch id before switching>",
+  "expectedHead": "<head before switching>"
 }
 ```
 
-헤더의 `X-Novail-Branch-Id`는 `expectedBranchId`와 같아야 합니다. 성공 시 전환한 작업 공간을 반환합니다. queued/running/paused Run이 있으면 `RUN_ACTIVE`로 차단합니다. 승인 대기 후보는 원래 분기에 보관한 채 전환할 수 있습니다.
+The `X-Novail-Branch-Id` header must equal `expectedBranchId`. Success returns the switched workspace. A queued, running, or paused Run blocks switching with `RUN_ACTIVE`. Candidates awaiting approval remain on the source branch and do not block switching.
 
-### 모든 변경 요청의 범위
+### Scope of every mutation
 
-새 클라이언트는 초안 저장, 후보 생성·채택, 실행, 작품 전환, 판본 발행을 포함한 모든 변경에 `X-Novail-Branch-Id`를 보냅니다. 서버는 비동기 작업 전과 실제 저장 트랜잭션 안에서 작품과 분기를 다시 확인합니다.
+New clients send `X-Novail-Branch-Id` on every mutation, including saving a draft, creating or adopting a candidate, starting an Agent run, switching works, and publishing an edition. The server rechecks the work and branch before asynchronous work and again inside the storage transaction.
 
-두 분기가 같은 snapshot/head를 공유하더라도 다른 분기의 요청은 `BRANCH_MISMATCH`로 거절됩니다. 조회 범위 밖의 snapshot/candidate/run은 사용할 수 없습니다. 스냅샷 다운로드 링크는 `snapshotId`와 `branchId`를 함께 사용합니다. 발행 판본 다운로드는 프로젝트 공통 범위입니다.
+Even when two branches share the same snapshot/head, a request from another branch is rejected with `BRANCH_MISMATCH`. A snapshot, candidate, or run outside the request's scope cannot be used. Snapshot download links include both `snapshotId` and `branchId`; published edition downloads are scoped to the shared work.
 
-현재 서비스는 단일 사용자의 서버 측 현재 선택을 공유합니다. 여러 창에서 서로 다른 분기를 고르면 오래된 창의 변경은 거절됩니다. UI는 입력을 유지하고, 명시적인 **분기 상태 다시 불러오기**로 상태를 복구합니다. 사용자별 독립 세션·실시간 공동 편집은 이 기능의 범위가 아닙니다.
+The current service shares one server-side selection for its single user. If different windows select different branches, mutations from the stale window are rejected. The UI preserves input and recovers through an explicit **Reload branch state** action. Per-user sessions and real-time collaborative editing are outside this feature's scope.
 
-## 분기 병합
+## Branch merges
 
-병합은 현재 분기를 target으로 두고 다른 분기를 source로 선택하는 2-parent 흐름입니다. 자동으로 head를 바꾸지 않으며 다음 세 단계를 분리합니다.
+A merge is a two-parent flow with the current branch as target and another branch as source. It never moves the head automatically and separates three stages:
 
-1. `POST /api/merge-previews`에 `sourceBranchId`, target의 `expectedHead`, `baseWorkspaceHash`를 보내 미리보기를 만듭니다.
-2. `GET /api/merge-previews/{id}`로 source/target 변경과 충돌을 검토하고, `POST /api/merge-previews/{id}/seal`에 `previewHash`와 충돌별 해소 값을 보냅니다.
-3. 봉인하면 원자적인 병합 변경 세트가 생깁니다. 이 변경 세트도 해시와 영향 대상을 별도로 검토한 뒤 명시적으로 채택해야 target head가 전진합니다.
+1. Send `sourceBranchId`, the target's `expectedHead`, and `baseWorkspaceHash` to `POST /api/merge-previews`.
+2. Review source/target changes and conflicts through `GET /api/merge-previews/{id}`, then send `previewHash` and each conflict resolution to `POST /api/merge-previews/{id}/seal`.
+3. Sealing creates an atomic merge change set. Its hash and impact targets must still be reviewed and explicitly adopted before the target head advances.
 
-미리보기와 봉인 사이에 source head·source workspace·target head·target workspace가 바뀌면 stale로 거절합니다. source와 target은 달라야 하고, source에 실행 중인 Run이 없어야 하며, 이미 target 조상에 포함된 source를 다시 병합하지 않습니다. 공통 조상이 없거나 최적 공통 조상이 여러 개인 경우 병합을 차단합니다. 공통 조상은 있지만 과거 맥락이 불명확한 항목은 임의 추론하지 않고 명시적 해소를 요구합니다.
+If the source head, source workspace, target head, or target workspace changes between preview and seal, the request is rejected as stale. Source and target must differ, the source must have no active Run, and a source already included in the target's ancestry cannot be merged again.
+A merge is blocked when there is no common ancestor or when multiple best common ancestors exist. When a common ancestor exists but historical context for an item is ambiguous, NOVAIL requires an explicit resolution instead of guessing.
 
-장면 충돌은 source, target 또는 스키마에 맞는 직접 작성 값으로 해소합니다. 기획·의존성·배치도 자동 의미 병합을 주장하지 않으며 충돌 항목마다 명시적으로 선택합니다. 보호 문장은 양쪽 요구 조건의 합집합을 보존하고, 배치는 살아남은 장면 ID만 유지한 뒤 빠진 장면을 결정적으로 덧붙입니다. 봉인은 source를 변경하지 않습니다.
+Scene conflicts accept the source, target, or a schema-valid custom value. Plans, dependencies, and layout also require an explicit choice; NOVAIL does not claim automatic semantic merging. Protected prose preserves the union of both sides' requirements. Layout retains only surviving scene IDs and then appends missing scenes deterministically. Sealing never modifies the source.
 
-병합 변경 세트는 일부만 파생할 수 없습니다. 채택 시 source 조상 정보가 새 target 스냅샷에 기록됩니다. 변경 세트의 승인·hash·부분 파생 계약은 `docs/revisions.md`를 참조하세요.
+A merge change set cannot be partially derived. On adoption, source-ancestry information is recorded on the new target snapshot. See `docs/revisions.md` for change-set approval, hash, and partial-derivation contracts.
 
-## 멱등성과 기존 클라이언트
+## Idempotency and legacy clients
 
-새 멱등 기록에는 작품 ID와 분기 ID를 저장합니다. 같은 요청·키·원래 분기에서의 재시도는 기존 결과를 반환하며, 그 결과가 전환 응답이더라도 전환을 다시 실행하지 않습니다. 다른 분기에서 같은 키를 재사용하면 거절합니다.
+New idempotency records store both work ID and branch ID. A retry with the same request, key, and original branch returns the prior result; even if that result is a switch response, it does not perform the switch again. Reusing the key from another branch is rejected.
 
-새 요청은 헤더가 없었어도 서버가 해석한 작품·분기를 기록하므로 이후 범위 검사를 받습니다. 헤더가 없었다는 사실만으로 구버전 기록으로 취급하지 않습니다. 구버전 호환 재생은 저장된 작품 ID와 분기 ID가 모두 없는 기록에만 해당합니다.
+New requests record the work and branch interpreted by the server even when the header was omitted, so later scope checks still apply. A missing header alone does not make a record legacy. Legacy-compatible replay applies only when the stored record has neither a work ID nor a branch ID.
 
-분기가 하나뿐인 작품에는 기존 헤더 없는 요청을 허용합니다. 분기가 둘 이상이면 `BRANCH_REQUIRED`로 명시적 범위를 요구합니다. 과거의 범위 없는 멱등 기록도 헤더 없는 단일 분기 호환 모드에서만 재생합니다. 명시적 새 요청의 범위를 과거 기록에 임의로 붙이지 않습니다.
+Headerless legacy requests are accepted when a work has only one branch. With two or more branches, `BRANCH_REQUIRED` requires explicit scope. Historical unscoped idempotency records are replayed only in headerless single-branch compatibility mode. The server never invents an explicit new request's scope and attaches it to a historical record.
 
-## 이관
+## Migration
 
-저장소 초기화 시 기존 작품과 보관 작품에 안정적인 기본 분기 `주 작업본`을 추가합니다. 기존 스냅샷·후보 ID와 hash·판본은 변경하지 않습니다. 분기 ID가 없는 기존 후보와 Run은 해당 작품의 기본 분기에 속한 것으로 해석합니다.
+During store initialization, existing and archived works receive a stable default branch named `Main workspace`. Existing snapshot IDs, candidate IDs and hashes, and editions remain unchanged. Existing candidates and runs without a branch ID are interpreted as belonging to that work's default branch.
 
-이전 구현에서 공유되던 Job/이벤트는 Run ID에 따라 소유 작품으로 나눕니다. 소유 Run을 찾지 못한 기록도 `legacyExecution`에 남기며 삭제하지 않습니다. 이관은 반복 실행할 수 있습니다.
+Jobs and events shared by earlier implementations are partitioned by the work that owns each run. Records whose owning run cannot be found are retained under `legacyExecution`, not deleted. Migration is repeatable.
 
-운영 데이터는 업그레이드 전에 별도로 백업해야 합니다. 일반 실행은 자동으로 백업 테이블을 만들지 않습니다.
+Back up production data separately before upgrading. Ordinary execution does not create an automatic backup table.
 
-## 제외
+## Exclusions
 
-분기 이름 변경, 삭제, 다중 사용자 권한, 전용 branch 테이블/정규화 저장소는 후속 범위입니다. 공유 snapshot 저장소도 현재 JSONB 집계 문서 안에 있으므로 대규모 작품·다수 분기 또는 높은 동시성의 성능을 보장한 것은 아닙니다. 병합의 영향·충돌 분류는 구조와 규칙에 따른 보수적 판단이며 작품 의미가 올바르게 통합되었다는 증명이 아닙니다.
+Branch rename and deletion, multi-user authorization, and a dedicated branch table or normalized store are future work. The shared snapshot store also remains inside the JSONB aggregate document, so performance is not guaranteed for very large works, many branches, or high concurrency. Merge impact and conflict classification are conservative structural and rule-based judgments, not proof that the work's meaning has been integrated correctly.
