@@ -16,7 +16,7 @@ export function makeSnapshot(state, label, options = {}) {
   const lineage = { parentSnapshotId: state.head ?? null, mergeParentSnapshotId: options.mergeParentSnapshotId ?? null,
     mergeSource: options.mergeSource ? structuredClone(options.mergeSource) : null };
   if (lineage.mergeParentSnapshotId && !state.snapshots.some(({ id }) => id === lineage.mergeParentSnapshotId)) {
-    throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', '병합 부모 스냅샷이 없습니다.', 409);
+    throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', 'The merge parent snapshot is missing.', 409);
   }
   const canonicalHash = workspaceHash(state);
   return { id: `snapshot-${randomUUID()}`, schemaVersion: 3, ...lineage, workspaceHash: canonicalHash,
