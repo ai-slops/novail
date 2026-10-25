@@ -25,6 +25,6 @@ export function modelSelectionReady(state: ModelCatalogState, model: string): bo
 
 export function modelCatalogErrorMessage(code: string): string {
   return code === "PROVIDER_KEY_REJECTED"
-    ? "서버 API 키가 거부되었습니다. 키 설정을 확인한 뒤 다시 불러오세요."
-    : "모델 목록을 불러오지 못했습니다. 서버 연결을 확인하고 다시 시도하세요."
+    ? "The server API key was rejected. Check the key configuration, then reload."
+    : "Could not load the model catalog. Check the server connection and try again."
 }

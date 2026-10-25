@@ -37,10 +37,10 @@ test("unsupported catalogs permit only an explicit manual model while demo needs
   assert.equal(modelSelectionReady({ kind: "demo" }, ""), true)
 })
 
-test("catalog failures map to sanitized Korean guidance", () => {
+test("catalog failures map to sanitized English guidance", () => {
   // Given / When: public error codes are mapped at the UI boundary
   // Then: key failures are actionable and unknown provider text is not reflected
-  assert.match(modelCatalogErrorMessage("PROVIDER_KEY_REJECTED"), /키.*확인/u)
-  assert.match(modelCatalogErrorMessage("MODEL_CATALOG_FAILED"), /모델 목록/u)
+  assert.match(modelCatalogErrorMessage("PROVIDER_KEY_REJECTED"), /key.*Check/u)
+  assert.match(modelCatalogErrorMessage("MODEL_CATALOG_FAILED"), /model catalog/u)
   assert.doesNotMatch(modelCatalogErrorMessage("secret provider response"), /secret provider response/u)
 })

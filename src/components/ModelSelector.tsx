@@ -38,7 +38,7 @@ export function ModelSelector({ value, disabled, localDemo = false, onChange, on
       if (currentRequest !== request.current) return
       if (cause instanceof ApiError && cause.code === "MODEL_CATALOG_UNSUPPORTED") {
         setState({ kind: "manual" })
-        setMessage("이 제공자는 모델 목록을 지원하지 않습니다. 사용할 모델 ID를 직접 입력하세요.")
+        setMessage("This provider does not support a model catalog. Enter the model ID directly.")
         return
       }
       setState({ kind: "blocked" })
@@ -56,19 +56,19 @@ export function ModelSelector({ value, disabled, localDemo = false, onChange, on
 
   return <section className="model-selector" aria-labelledby="model-selector-label">
     <div className="model-selector-row">
-      {state.kind === "manual" ? <label className="field-label" id="model-selector-label">실행할 모델 ID
+      {state.kind === "manual" ? <label className="field-label" id="model-selector-label">Model ID to run
         <input value={value} onChange={(event) => choose(event.target.value)} disabled={disabled} maxLength={200} autoComplete="off" />
-      </label> : <label className="field-label" id="model-selector-label">실행할 모델 선택
+      </label> : <label className="field-label" id="model-selector-label">Select model to run
         <select value={state.kind === "demo" ? "" : value} onChange={(event) => choose(event.target.value)} disabled={disabled || state.kind !== "catalog"}>
-          <option value="">{state.kind === "demo" ? "AI가 아닌 로컬 예제" : state.kind === "loading" ? "모델 목록을 불러오는 중" : "모델을 선택하세요"}</option>
+          <option value="">{state.kind === "demo" ? "Local example (not AI)" : state.kind === "loading" ? "Loading model catalog" : "Select a model"}</option>
           {state.kind === "catalog" ? state.modelIds.map((id) => <option key={id} value={id}>{id}</option>) : null}
         </select>
       </label>}
-      {!localDemo ? <button className="button quiet compact" type="button" disabled={disabled || state.kind === "loading"} onClick={() => void load()}><RefreshCw className={state.kind === "loading" ? "spin" : ""} /> 목록 다시 불러오기</button> : null}
+      {!localDemo ? <button className="button quiet compact" type="button" disabled={disabled || state.kind === "loading"} onClick={() => void load()}><RefreshCw className={state.kind === "loading" ? "spin" : ""} /> Reload catalog</button> : null}
     </div>
-    {state.kind === "loading" ? <p className="model-selector-status" role="status"><LoaderCircle className="spin" /> 제공자 모델 목록을 확인하고 있습니다.</p> : null}
+    {state.kind === "loading" ? <p className="model-selector-status" role="status"><LoaderCircle className="spin" /> Checking the provider model catalog.</p> : null}
     {message ? <p className={state.kind === "manual" ? "model-selector-status" : "dialog-error"} role={state.kind === "manual" ? "status" : "alert"}><AlertTriangle /> {message}</p> : null}
-    {state.kind === "catalog" && state.modelIds.length === 0 ? <p className="dialog-error" role="alert">사용 가능한 모델이 없습니다. 제공자 설정을 확인한 뒤 다시 불러오세요.</p> : null}
-    {state.kind === "catalog" || state.kind === "manual" ? <p className="model-capability-warning"><AlertTriangle /> 목록에는 이미지 전용 모델이 포함될 수 있습니다. 도구 호출, SSE 스트리밍, strict JSON Schema를 지원하는 언어 모델을 선택하세요.</p> : null}
+    {state.kind === "catalog" && state.modelIds.length === 0 ? <p className="dialog-error" role="alert">No models are available. Check the provider configuration, then reload.</p> : null}
+    {state.kind === "catalog" || state.kind === "manual" ? <p className="model-capability-warning"><AlertTriangle /> The catalog may include image-only models. Choose a language model that supports tool calls, SSE streaming, and strict JSON Schema.</p> : null}
   </section>
 }
