@@ -7,7 +7,7 @@ function ancestryCatalog(state) {
   const byId = new Map();
   for (const snapshot of snapshots) {
     if (byId.has(snapshot.id)) {
-      throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', '스냅샷 계보에 중복 식별자가 있습니다.', 409);
+      throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', 'The snapshot lineage contains duplicate IDs.', 409);
     }
     byId.set(snapshot.id, snapshot);
   }
@@ -20,24 +20,24 @@ function parentIds(catalog, snapshot) {
   let primary;
   if (own(snapshot, 'parentSnapshotId')) primary = snapshot.parentSnapshotId;
   else if (index < catalog.explicitStart) primary = index === 0 ? null : catalog.snapshots[index - 1].id;
-  else throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', '스냅샷의 부모 계보가 기록되지 않았습니다.', 409);
+  else throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', 'The snapshot parent lineage was not recorded.', 409);
 
   const parents = [primary, own(snapshot, 'mergeParentSnapshotId') ? snapshot.mergeParentSnapshotId : null]
     .filter((id) => id !== null);
   if (parents.some((id) => typeof id !== 'string' || !catalog.byId.has(id))) {
-    throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', '스냅샷의 부모를 찾을 수 없습니다.', 409);
+    throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', 'A snapshot parent was not found.', 409);
   }
   return [...new Set(parents)];
 }
 
 function ancestorSet(catalog, snapshotId) {
   if (!catalog.byId.has(snapshotId)) {
-    throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', '스냅샷을 찾을 수 없습니다.', 409);
+    throw new DomainError('SNAPSHOT_ANCESTRY_INCOMPLETE', 'Snapshot not found.', 409);
   }
   const ancestors = new Set();
   const visiting = new Set();
   const visit = (id) => {
-    if (visiting.has(id)) throw new DomainError('SNAPSHOT_ANCESTRY_CYCLE', '스냅샷 계보에 순환이 있습니다.', 409);
+    if (visiting.has(id)) throw new DomainError('SNAPSHOT_ANCESTRY_CYCLE', 'The snapshot lineage contains a cycle.', 409);
     if (ancestors.has(id)) return;
     visiting.add(id);
     for (const parentId of parentIds(catalog, catalog.byId.get(id))) visit(parentId);
@@ -59,12 +59,12 @@ export function findMergeBase(state, sourceHead, targetHead) {
   const sourceAncestors = ancestorSet(catalog, sourceHead);
   const targetAncestors = ancestorSet(catalog, targetHead);
   const common = catalog.snapshots.filter((snapshot) => sourceAncestors.has(snapshot.id) && targetAncestors.has(snapshot.id));
-  if (common.length === 0) throw new DomainError('MERGE_BASE_NOT_FOUND', '공통 기준 스냅샷을 찾을 수 없습니다.', 409);
+  if (common.length === 0) throw new DomainError('MERGE_BASE_NOT_FOUND', 'No common base snapshot was found.', 409);
 
   const ancestryById = new Map(common.map((snapshot) => [snapshot.id, ancestorSet(catalog, snapshot.id)]));
   const maximal = common.filter((candidate) => !common.some((other) => (
     other.id !== candidate.id && ancestryById.get(other.id).has(candidate.id)
   )));
-  if (maximal.length !== 1) throw new DomainError('MERGE_BASE_AMBIGUOUS', '병합 기준 스냅샷을 하나로 결정할 수 없습니다.', 409);
+  if (maximal.length !== 1) throw new DomainError('MERGE_BASE_AMBIGUOUS', 'A single merge base snapshot could not be determined.', 409);
   return maximal[0];
 }

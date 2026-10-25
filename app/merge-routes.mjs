@@ -13,7 +13,7 @@ async function body(context, schema) {
   try {
     value = await context.req.json();
   } catch (error) {
-    if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', '유효한 JSON 본문이 필요합니다.', 400);
+    if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', 'A valid JSON body is required.', 400);
     throw error;
   }
   return schema.parse(value);

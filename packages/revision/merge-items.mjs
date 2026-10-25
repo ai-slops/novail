@@ -10,8 +10,8 @@ const sceneIds = (workspace) => workspace.scenes.map(({ id }) => id);
 
 function itemTitle(kind, artifactId, source, target, base) {
   if (kind === 'scene' || kind === 'plan') return source?.title ?? target?.title ?? base?.title ?? artifactId;
-  if (kind === 'dependencies') return '의존성 그래프';
-  return '읽기 순서';
+  if (kind === 'dependencies') return 'Dependency graph';
+  return 'Reading order';
 }
 
 function sceneItem(artifactId, baseWorkspace, sourceWorkspace, targetWorkspace, baseKnown) {
@@ -65,7 +65,7 @@ export function buildMergeItems(baseWorkspace, sourceWorkspace, targetWorkspace,
     const layout = explicitContextItem('layout', 'reading-order', baseWorkspace, sourceWorkspace, targetWorkspace, true);
     if (layout) items.push(layout);
     else items.push({
-      key: artifactKey('layout', 'reading-order'), kind: 'layout', artifactId: 'reading-order', title: '읽기 순서',
+      key: artifactKey('layout', 'reading-order'), kind: 'layout', artifactId: 'reading-order', title: 'Reading order',
       baseKnown: true, base: structuredClone(baseWorkspace.layout),
       source: structuredClone(sourceWorkspace.layout), target: structuredClone(targetWorkspace.layout),
       conflict: true, reason: 'explicit-layout-resolution',
@@ -78,13 +78,13 @@ function chosenChange(item, resolution) {
   if (!resolution || resolution.choice === 'source') return { kind: item.kind, artifactId: item.artifactId, after: structuredClone(item.source) };
   if (resolution.choice === 'target') return { kind: item.kind, artifactId: item.artifactId, after: structuredClone(item.target) };
   const parsed = changeInputSchema.safeParse(resolution.change);
-  if (!parsed.success) throw new DomainError('MERGE_RESOLUTION_INVALID', '사용자 병합 결과 형식이 유효하지 않습니다.', 422);
+  if (!parsed.success) throw new DomainError('MERGE_RESOLUTION_INVALID', 'The custom merge result format is invalid.', 422);
   const change = parsed.data;
   if (change.kind !== item.kind || change.artifactId !== item.artifactId) {
-    throw new DomainError('MERGE_RESOLUTION_INVALID', '사용자 병합 결과가 대상 항목과 일치하지 않습니다.', 422);
+    throw new DomainError('MERGE_RESOLUTION_INVALID', 'The custom merge result does not match the target item.', 422);
   }
   if ((change.kind === 'scene' || change.kind === 'plan') && change.after !== null && change.after.id !== item.artifactId) {
-    throw new DomainError('MERGE_RESOLUTION_INVALID', '사용자 병합 결과의 내부 식별자가 대상과 일치하지 않습니다.', 422);
+    throw new DomainError('MERGE_RESOLUTION_INVALID', 'The internal ID in the custom merge result does not match the target.', 422);
   }
   return structuredClone(change);
 }
@@ -93,12 +93,12 @@ function normalizeProtections(item, change) {
   if (item.kind !== 'scene') return change;
   const requirements = item.protectionRequirements ?? [];
   if (change.after === null) {
-    if (requirements.length > 0) throw new DomainError('MERGE_PROTECTION_VIOLATION', '보호 문장을 삭제하거나 변경할 수 없습니다.', 422);
+    if (requirements.length > 0) throw new DomainError('MERGE_PROTECTION_VIOLATION', 'Protected quotes cannot be deleted or changed.', 422);
     return change;
   }
   const protections = [...new Set([...requirements, ...change.after.protectedQuotes])].sort(ordinal);
   if (protections.some((quote) => !change.after.text.includes(quote))) {
-    throw new DomainError('MERGE_PROTECTION_VIOLATION', '보호 문장은 병합 결과 본문에 있어야 합니다.', 422);
+    throw new DomainError('MERGE_PROTECTION_VIOLATION', 'Protected quotes must appear in the merged text.', 422);
   }
   return { ...change, after: { ...change.after, protectedQuotes: protections } };
 }
@@ -106,17 +106,17 @@ function normalizeProtections(item, change) {
 export function resolveMergeItems(targetWorkspace, items, resolutions) {
   const byKey = new Map();
   for (const resolution of resolutions) {
-    if (byKey.has(resolution.key)) throw new DomainError('MERGE_RESOLUTION_DUPLICATE', '같은 병합 항목을 두 번 해결할 수 없습니다.', 422);
+    if (byKey.has(resolution.key)) throw new DomainError('MERGE_RESOLUTION_DUPLICATE', 'The same merge item cannot be resolved twice.', 422);
     byKey.set(resolution.key, resolution);
   }
   const itemKeys = new Set(items.map(({ key }) => key));
-  if ([...byKey.keys()].some((key) => !itemKeys.has(key))) throw new DomainError('MERGE_RESOLUTION_EXTRA', '미리보기에 없는 병합 결과가 포함되었습니다.', 422);
+  if ([...byKey.keys()].some((key) => !itemKeys.has(key))) throw new DomainError('MERGE_RESOLUTION_EXTRA', 'A merge result not present in the preview was included.', 422);
 
   const changes = [];
   let layoutChange = null;
   for (const item of items) {
     const resolution = byKey.get(item.key);
-    if (item.conflict && !resolution) throw new DomainError('MERGE_RESOLUTION_REQUIRED', '충돌한 모든 항목의 결과를 선택해야 합니다.', 422);
+    if (item.conflict && !resolution) throw new DomainError('MERGE_RESOLUTION_REQUIRED', 'Choose a result for every conflicting item.', 422);
     const change = normalizeProtections(item, chosenChange(item, resolution));
     if (item.kind === 'layout') layoutChange = change;
     else changes.push(change);
