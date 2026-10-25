@@ -1,10 +1,10 @@
-# Router4U로 개인 Codex 계정 연결
+# Connect a Personal Codex Account Through Router4U
 
-이 절차는 Router4U의 `personal` 연결을 통해 NOVAIL 개발 서버에서 실제 모델을 선택적으로 사용하는 방법입니다. 계정 연결, 준비 상태 확인, 실제 추론은 서로 다른 단계입니다. 로그인이나 모델 목록 조회가 실제 추론 성공 또는 모델 사용 권한을 보장하지 않습니다.
+This procedure optionally uses a real model from the NOVAIL development server through Router4U's `personal` connection. Account connection, readiness checks, and real inference are separate stages. Successful sign-in or model listing does not guarantee inference success or model entitlement.
 
-## 1. Router4U 설치와 접속
+## 1. Install and access Router4U
 
-Linux amd64 Docker 호스트에서 검증한 업스트림 소스를 고정해 빌드합니다.
+Build a pinned, verified upstream revision on a Linux amd64 Docker host.
 
 ```sh
 git clone https://github.com/slop-lab/router4u.git
@@ -21,32 +21,32 @@ docker run -d --name novail-router4u --restart unless-stopped --stop-timeout 30 
 docker inspect --format '{{.State.Status}} / {{.State.Health.Status}}' novail-router4u
 ```
 
-`running / healthy`가 될 때까지 기다립니다. 컨테이너 ID가 출력된 것만으로 초기화 성공을 판단하지 않습니다. 로컬에서는 `http://127.0.0.1:9470/`을 엽니다.
+Wait for `running / healthy`. A printed container ID alone does not show that initialization succeeded. Open `http://127.0.0.1:9470/` locally.
 
-DIM에서는 `dim-development-service expose --name router4u --port 9470 --ingress https-ts --require-scheme https`가 출력한 HTTPS URL을 사용합니다. 이 명령은 작업공간에서 접근 가능한 로컬 포트를 노출하므로 원격 Docker daemon을 사용한다면 먼저 로컬 브리지가 필요합니다. DIM 작업공간의 `/tmp` 기반 브리지와 노출은 재부팅 후 유지된다고 가정하지 말고 Router4U 상태를 확인한 뒤 다시 연결합니다. 내부 백엔드 포트 `8317`과 OAuth 콜백 포트 `1455`는 공개하지 않습니다.
+In DIM, use the HTTPS URL printed by `dim-development-service expose --name router4u --port 9470 --ingress https-ts --require-scheme https`. This command exposes a workspace-accessible local port, so a remote Docker daemon requires a local bridge first. Do not assume a DIM workspace's `/tmp` bridge or exposure survives a reboot; recheck Router4U and reconnect it. Never expose internal backend port `8317` or OAuth callback port `1455`.
 
-관리자 키는 필요할 때 호스트에서 직접 조회합니다. 다음 명령의 실제 출력은 채팅, 이슈, 로그 또는 커밋에 붙이지 않습니다.
+Read the admin key directly on the host only when needed. Never paste the real output of this command into chat, an issue, logs, or a commit.
 
 ```sh
 docker exec novail-router4u router4u admin-key show
 ```
 
-관리자 키는 제어실 로그인 전용입니다. NOVAIL의 `OPENAI_API_KEY`로 사용하지 않습니다.
+The admin key is only for control-room sign-in. Do not use it as NOVAIL's `OPENAI_API_KEY`.
 
-## 2. 개인 Codex 연결과 프로젝트 키
+## 2. Connect personal Codex and create a project key
 
-1. Router4U 제어실에서 **Connections → personal → Connect Codex**를 선택합니다.
-2. 공급자 화면의 **Sign in with ChatGPT**로 본인 계정에 로그인합니다.
-3. 브라우저가 `localhost:1455`로 이동한 뒤 페이지가 열리지 않으면 주소창의 전체 콜백 URL을 복사해 Router4U 대화상자에 직접 붙여 넣습니다. 콜백 URL은 채팅이나 저장소에 공유하지 않습니다.
-4. **Set up models → Load available models**에서 모델을 조회하고 사용할 모델만 선택한 뒤 연결을 활성화합니다. 모델 조회만으로 entitlement가 검증되지는 않습니다.
-5. **Projects & keys**에서 NOVAIL용 프로젝트를 만들고 사용할 `personal` 라우트와 모델을 허용합니다.
-6. 프로젝트 키를 발급합니다. 기본 scope에는 `inference`와 `usage:read`가 포함됩니다. 이 프로젝트 키만 NOVAIL에 사용하며 관리자 키나 OAuth 자격 증명은 사용하지 않습니다.
+1. In the Router4U control room, choose **Connections -> personal -> Connect Codex**.
+2. On the provider page, sign into your own account with **Sign in with ChatGPT**.
+3. If the browser redirects to `localhost:1455` and the page does not open, copy the complete callback URL from the address bar and paste it directly into the Router4U dialog. Never share that callback URL in chat or the repository.
+4. Under **Set up models -> Load available models**, load the catalog, select only the models you intend to use, and activate the connection. Catalog access alone does not verify entitlement.
+5. Under **Projects & keys**, create a NOVAIL project and allow only the required `personal` route and models.
+6. Issue a project key. Its default scopes include `inference` and `usage:read`. Use only this project key with NOVAIL, never the admin key or OAuth credentials.
 
-Codex 연결은 본인이 소유한 개인 계정과 본인의 워크로드용입니다. 계정 접근을 다른 사람에게 제공하거나 자격 증명을 배포·재판매하지 말고 현재 공급자 약관과 제한을 직접 확인합니다.
+Use a Codex connection only with a personal account you own and for your own workload. Do not provide account access to others or distribute or resell credentials. Review the provider's current terms and limits yourself.
 
-## 3. NOVAIL 환경 설정
+## 3. Configure the NOVAIL environment
 
-Node.js 24.22.0 이상을 활성화하고 의존성을 설치한 뒤 저장소의 일반 환경 파일을 만듭니다. 이미 `.env`가 있으면 복사 명령을 생략하고 필요한 제공자 항목만 수정하세요.
+Activate Node.js 24.22.0 or later, install dependencies, and create the repository's ordinary environment file. If `.env` already exists, skip the copy and edit only the required provider fields.
 
 ```sh
 cp .env.example .env
@@ -54,7 +54,7 @@ chmod 600 .env
 pnpm install
 ```
 
-`.env`를 직접 편집합니다.
+Edit `.env` directly.
 
 ```dotenv
 OPENAI_BASE_URL=http://127.0.0.1:9470/v1
@@ -65,56 +65,57 @@ OPENAI_MODEL=
 PORT=3000
 ```
 
-- 웹 UI에서 조회된 모델을 선택하면 `OPENAI_MODEL`을 설정하지 않아도 됩니다. 기본값 또는 CLI 생성 검사에 사용할 때만 조회된 정확한 ID를 넣으세요. 임의의 GPT 기본값을 추측하지 않습니다.
-- DIM처럼 Router4U가 다른 주소에 있다면 `OPENAI_BASE_URL`에 NOVAIL 서버에서 도달 가능한 게이트웨이 주소와 `/v1`을 씁니다. 브라우저용 제어실 URL과 서버가 도달할 주소가 다를 수 있습니다.
-- `.env`와 다른 `.env.*` 파일은 gitignore 대상입니다. 프로젝트 키를 셸 기록, 채팅, 브라우저 클라이언트 코드 또는 커밋에 노출하지 않습니다.
-- 별도 Router4U 전용 NOVAIL 상태나 시작 경로는 없습니다. 실제 원고와 분리해 확인하려면 `NOVAIL_DATA_FILE`을 소유자가 만든 임시 경로로 명시하세요. 생성 probe 자체는 항상 임시 저장소를 사용합니다.
+- You do not need `OPENAI_MODEL` when selecting a catalog model in the web UI. Set it only as a default or for the CLI generation check, using the exact catalog ID. Never guess a default GPT identifier.
+- If Router4U is at another address, as in DIM, set `OPENAI_BASE_URL` to the gateway address reachable from the NOVAIL server plus `/v1`. The browser control-room URL and server-reachable URL may differ.
+- `.env` and other `.env.*` files are ignored by Git. Never expose a project key in shell history, chat, browser client code, or a commit.
+- There is no separate Router4U-specific NOVAIL state or startup path. To test away from a real manuscript, set `NOVAIL_DATA_FILE` to a temporary path created by the owner. The generation probe always uses temporary storage.
 
-현재 셸의 Node가 요구 버전보다 낮고 즉시 버전 관리자를 사용할 수 없을 때만 다음 형태로 검사를 실행할 수 있습니다. 표준 절차는 저장소의 `.node-version`인 Node 24.22.0을 활성화하는 것입니다.
+Only when the current shell's Node version is too old and a version manager is not immediately available, run the check in this form. The standard procedure is to activate the repository's Node 24.22.0 from `.node-version`.
 
 ```sh
 npx --yes --package=node@24.22.0 --package=pnpm@12.5.1 pnpm provider:check
 ```
 
-## 4. 준비 상태와 실제 추론을 구분해 확인
+## 4. Distinguish readiness from real inference
 
-먼저 읽기 전용 준비 상태를 확인합니다.
+First run the read-only readiness check.
 
 ```sh
 pnpm provider:check
 ```
 
-이 명령은 인증된 표준 `GET /v1/models`만 호출합니다. 키가 승인되는지와 선택 모델이 목록에 있는지를 확인하지만 추론하지 않으며 Chat Completions, 스트리밍, 도구, strict JSON Schema, 실제 entitlement 또는 응답 품질을 증명하지 않습니다. 게이트웨이가 모델 목록 API에 404/405를 반환하면 catalog를 `UNAVAILABLE`로 표시할 뿐 비호환이라고 단정하지 않습니다.
+This command calls only an authenticated standard `GET /v1/models`. It checks whether the key is accepted and a selected model appears in the catalog, but it performs no inference and proves nothing about Chat Completions, streaming, tools, strict JSON Schema, real entitlement, or response quality. If the gateway returns 404 or 405 for the model-list API, the check reports the catalog as `UNAVAILABLE` without declaring the gateway incompatible.
 
-CLI 생성 검사는 `OPENAI_MODEL`에 정확한 모델 ID를 설정해야 합니다. 실제 공급자 호출과 quota 사용에 명시적으로 동의할 때만 생성 probe를 실행합니다.
+The CLI generation check requires an exact model ID in `OPENAI_MODEL`. Run it only after explicitly consenting to a real provider call and quota usage.
 
 ```sh
 pnpm provider:check --generate
 ```
 
-`--generate`는 임시 디렉터리의 기본 시드로 격리된 Part run을 만들고 NOVAIL의 읽기 전용 도구, 스트리밍, tool loop와 strict JSON Schema 결과 경로를 확인한 뒤 임시 상태를 삭제합니다. 실제 사용자 파일과 정본 head는 건드리지 않지만 공급자 quota는 사용할 수 있습니다. 출력이 시드와 의미상 같으면 `NO_CHANGES` 검증 issue로 채택이 차단될 수 있으며, 이는 연결 probe에서 의도된 결과일 수 있습니다. 오류는 실패로 남고 로컬 예제 결과로 대체되지 않습니다. 이 probe는 연결 호환성 확인이지 문학 품질, 실제 사용자 워크플로 채택, 일반적인 모델 신뢰성 평가가 아닙니다.
+`--generate` creates an isolated Part run from the default seed in a temporary directory, exercises NOVAIL's read-only tools, streaming, tool loop, and strict JSON Schema result path, then deletes the temporary state. It does not touch user files or the canonical head, but it may consume provider quota.
+If the output is semantically identical to the seed, the `NO_CHANGES` validation issue may block Adopt; that can be an expected probe result. Errors remain failures and are never replaced with Local example (not AI) results. This probe checks connection compatibility, not literary quality, real user-flow adoption, or general model reliability.
 
-## 5. NOVAIL 시작과 노출
+## 5. Start and expose NOVAIL
 
-NOVAIL은 Router4U 전용 wrapper 없이 일반 시작 명령으로 `.env`를 읽습니다. 키가 비어 있으면 명시적인 로컬 예제 모드로 시작합니다. 키가 있으면 base URL을 검증하며, 기본 모델이 비어 있어도 시작한 뒤 웹 UI에서 실행 모델을 고를 수 있습니다.
+NOVAIL reads `.env` through its ordinary startup command without a Router4U-specific wrapper. An empty key starts explicit Local example (not AI) mode. With a key, NOVAIL validates the base URL; the server can start without a default model so that users can choose one in the web UI.
 
 ```sh
 pnpm start
 ```
 
-`.env.example`의 기본 포트는 `3000`입니다. 해당 포트를 소유한 기존 미리보기가 있으면 그 프로세스의 소유권을 확인해 정상 종료하거나 `.env`에서 다른 `PORT`를 선택합니다. 모든 Node 프로세스를 일괄 종료하지 않습니다.
+The default port in `.env.example` is `3000`. If an existing preview owns the port, identify its owner and stop it cleanly or select another `PORT` in `.env`. Never terminate all Node processes indiscriminately.
 
-DIM에서는 별도 터미널에서 선택한 포트를 노출하고 도구가 출력한 실제 URL을 사용합니다.
+In DIM, expose the selected port from another terminal and use the exact URL printed by the tool.
 
 ```sh
 dim-development-service expose --name novail --port 3000 --ingress https-ts --require-scheme https
 ```
 
-서버를 연 뒤 웹 UI에서 Run을 직접 생성해야 실제 사용자 흐름의 추론이 발생합니다. 준비 검사 통과만으로 실제 Run이 수행된 것은 아닙니다.
+After opening the server, create a Run in the web UI to perform inference through the real user flow. Passing a readiness check does not mean a real Run occurred.
 
-Codex 라우트에서 Chat Completions가 `unsupported_capability`로 거절되는 경우 `OPENAI_API=responses`를 사용합니다. 실제 모델·라우트의 지원 여부를 확인하고, 기존 실패 실행을 자동 재시도하지 말고 새 실행으로 검증하세요. 모델 목록 조회 성공만으로 전체 개정 도구 루프의 성공이 보장되지는 않습니다.
+If a Codex route rejects Chat Completions with `unsupported_capability`, use `OPENAI_API=responses`. Check the actual model and route, and verify with a new Run rather than automatically retrying an existing failure. A successful catalog request does not guarantee the complete Revision tool loop.
 
-## 6. 수명주기와 데이터 책임
+## 6. Lifecycle and data responsibility
 
 ```sh
 docker stop -t 30 novail-router4u
@@ -122,6 +123,7 @@ docker start novail-router4u
 docker inspect --format '{{.State.Status}} / {{.State.Health.Status}}' novail-router4u
 ```
 
-컨테이너 stop/start는 `novail-router4u-data`와 `novail-router4u-transcripts` named volume을 보존합니다. 컨테이너를 교체할 때도 두 volume을 모두 다시 연결하며 동시에 두 설치가 같은 volume을 사용하게 하지 않습니다. 첫 volume에는 Router4U 설정, 키, OAuth 자격 증명과 운영 상태가 있고 transcript volume에는 원고가 포함될 수 있는 요청·응답 본문과 감사 기록이 있습니다. 둘 다 민감 정보로 취급하고 삭제·복원·이전 전에 정지 상태에서 함께 백업합니다.
+Stopping and starting the container preserves the `novail-router4u-data` and `novail-router4u-transcripts` named volumes. Reattach both volumes when replacing the container, and never let two installations use the same volumes simultaneously.
+The first volume contains Router4U configuration, keys, OAuth credentials, and operational state. The transcript volume can contain request and response bodies with manuscript text and audit records. Treat both as sensitive and back them up together while stopped before deletion, restoration, or migration.
 
-컨테이너가 healthy여도 계정 로그인, 라우트 활성화, 모델 선택, 프로젝트 정책 또는 실제 추론이 성공했다는 뜻은 아닙니다. 재부팅 후에는 Docker health, 임시 브리지, DIM 노출, NOVAIL 준비 검사를 각각 다시 확인합니다.
+A healthy container does not prove successful account sign-in, route activation, model selection, project policy, or real inference. After a reboot, independently recheck Docker health, any temporary bridge, DIM exposure, and NOVAIL readiness.

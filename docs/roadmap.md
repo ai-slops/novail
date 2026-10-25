@@ -1,54 +1,55 @@
-# 모델 사용 중심 로드맵
+# Model-Use Roadmap
 
-이 문서는 구현 완료 보고서가 아니라 다음 작업의 우선순위와 완료 기준입니다. 현재 **에이전트 실행** 탭에는 범위·예산 작성, Run 기록, SSE 진행 상황, 취소, 결과 검토 연결이 있고 제공자는 서버의 일반 `.env`로 연결합니다. 사람 평가와 채택도 생성과 분리되어 있습니다. 표준 `provider:check`와 명시적 생성 probe가 있으며 Router4U의 개인 Codex 로그인과 프로젝트 키 절차는 [`router4u.md`](router4u.md)에 게이트웨이 안내로 분리해 두었습니다. 이 연결 절차는 실제 사용자 Run의 품질 검증이나 아래 제공자 설정 UI를 완료했다는 뜻이 아닙니다.
+This document defines priorities and completion criteria for future work; it is not a completion report. The current **Agent runs** tab includes scope and budget composition, run history, SSE progress, cancellation, and result-review handoff, and providers are connected through the server's ordinary `.env`. Human evaluation and adoption are also separated from generation.
+A standard `provider:check` and an explicit generation probe exist; the personal Codex sign-in and project-key procedure for Router4U is documented separately as a gateway guide in [`router4u.md`](router4u.md). That connection procedure does not validate actual user-Run quality or complete the provider-settings UI below.
 
-## P1. 안전한 제공자 구성과 실제 모델 품질
+## P1. Safe provider configuration and real-model quality
 
-### 범위
+### Scope
 
-- 서버가 소유하는 provider profile API와 설정 화면을 추가합니다. 구성 여부는 가려서 표시하고 model과 base URL을 관리하되 API key는 서버의 비밀 저장소에서만 저장·사용합니다.
-- 연결 시험은 단순 HTTP 성공이 아니라 현재 Part 경로에 필요한 SSE, function tool loop, strict JSON Schema와 usage 응답 지원 여부를 구분해 보여 줍니다.
-- 실제 OpenAI 호환 모델로 선택 범위 읽기, 여러 turn, schema-valid 전체 교체안, 보호 문장, 취소와 실패 경계를 확인합니다. 현재 local fake model과 로컬 SSE fixture 결과를 실제 모델 품질 근거로 사용하지 않습니다.
-- 대표 원고와 사람 평가 기준으로 지시문·맥락 선택·결과 품질을 개선합니다. 평가는 채택을 자동 실행하는 신호로 사용하지 않습니다.
-- 실제 제공자가 구성된 상태에서는 장애나 잘못된 응답을 로컬 예제 결과로 바꾸지 않는 현재 원칙을 유지합니다.
+- Add a server-owned provider-profile API and settings screen. Display configuration state in redacted form and manage the model and base URL, while storing and using the API key only in the server's secret store.
+- Make connection tests distinguish support for SSE, a function tool loop, strict JSON Schema, and usage responses required by the current Part path, rather than reporting only HTTP success.
+- With a real OpenAI-compatible model, verify selected-scope reading, multiple turns, a schema-valid full replacement, protected prose, cancellation, and failure boundaries. Do not use the current local fake model or local SSE fixture as evidence of real-model quality.
+- Improve instructions, context selection, and result quality with representative manuscripts and human-evaluation criteria. Never use evaluation as a signal that automatically performs adoption.
+- Preserve the current rule that a configured real-provider failure or invalid response is never replaced with a Local example (not AI) result.
 
-### 완료 기준
+### Completion criteria
 
-- 사용자가 서버 재배포 없이 설정 상태, model, base URL을 확인하고 capability 연결 시험을 실행할 수 있습니다.
-- 브라우저 저장소, 안전한 DTO, 이벤트, 로그와 오류 본문에 비밀 키가 나타나지 않으며 재조회 시 값 대신 설정 여부만 보입니다.
-- 실제 호환 제공자로 Run 생성 → 읽기 도구 loop → 결과 검토 → 사람 평가 → 명시적 채택 또는 거절을 브라우저에서 완료합니다.
-- 인증 실패, capability 부족, schema-invalid 응답, timeout, 사용자 취소가 서로 다른 상태로 남고 동결된 입력과 검토 결과를 조용히 잃지 않습니다.
-- 사용량은 제공자 보고값, 보수적 추정값, 알 수 없음이 섞이지 않으며 취소 또는 실패를 성공이나 비과금으로 표시하지 않습니다.
-- 실제 원고 사용에서 정의한 평가 기준을 만족하는 결과와 반복되는 실패 유형을 기록해 다음 prompt와 context 정책을 결정할 수 있습니다. 이를 일반적인 문학 품질 보증으로 표현하지 않습니다.
+- Without redeploying the server, a user can inspect configuration state, model, and base URL and run a capability connection test.
+- Secret keys never appear in browser storage, safe DTOs, events, logs, or error bodies; later reads expose only whether a value is configured.
+- In the browser, complete Run creation -> read-only tool loop -> result review -> Human evaluation -> explicit Adopt or rejection against a real compatible provider.
+- Authentication failure, insufficient capabilities, schema-invalid output, timeout, and user cancellation remain distinct states and never silently lose frozen input or review results.
+- Provider-reported usage, conservative estimates, and unknown usage remain distinct, and cancellation or failure is never displayed as success or no charge.
+- Record results that meet defined evaluation criteria in real manuscript use, along with recurring failure types, to guide later prompt and context policy. Do not present this as a general guarantee of literary quality.
 
-## P2. 추적성, 비용과 평가 경험
+## P2. Traceability, cost, and evaluation experience
 
-### 범위
+### Scope
 
-- 각 Run에 실제로 보낸 지시문, 선택된 장면·기획·검토 발췌, 모델 설정과 결과 변경 세트를 연결해 입력 맥락을 추적합니다. 비밀 값은 추적 대상에서 제외합니다.
-- 입력·출력 token, 알려짐/추정 상태와 제공자별 비용 산정 근거를 실행 및 작품 수준에서 확인합니다.
-- 평가 화면에서 필수 출처 누락, 아직 `unknown`인 기준, 정확한 인용 부족과 현재 기준이 아닌 과거 보고서를 더 빠르게 구분하고 수정할 수 있게 합니다.
-- 실제 사용자의 평가와 채택 결과를 다음 지시문 개선에 참고하되, 평가를 자동 채택 신호로 사용하지 않습니다.
+- Link every run to the actual instruction, selected scene/plan/review excerpts, model settings, and resulting change set. Exclude secrets from tracing.
+- Show input/output tokens, known/estimated status, and the basis of provider-specific cost estimates at Run and work level.
+- Make missing required sources, criteria still marked `unknown`, insufficient exact citations, and historical reports that differ from the current baseline easier to distinguish and revise.
+- Use real users' evaluation and adoption outcomes to inform later instruction improvements, never as an automatic adoption signal.
 
-### 완료 기준
+### Completion criteria
 
-- 하나의 변경 세트에서 원인이 된 피드백, 모델 입력 맥락, Run, 사용량, 출력, 사람 평가와 최종 채택 여부를 양방향으로 찾을 수 있습니다.
-- 비용 화면은 보고값과 추정값을 혼합하지 않고 산정 기준과 누락 상태를 드러냅니다.
-- 사용자는 source hash와 정확한 인용을 잃지 않고 평가 개정을 추가할 수 있으며 stale 보고서는 계속 읽을 수 있습니다.
-- 실제 사용 세션에서 결과 품질, 취소, 오류와 채택률을 측정할 수 있지만 이 수치가 자동 품질 보증으로 표현되지 않습니다.
+- From one change set, users can navigate in both directions among the originating feedback, model input context, run, usage, output, human evaluation, and final adoption outcome.
+- The cost view never mixes reported and estimated values and exposes both calculation basis and missing-data state.
+- Users can append evaluation Revisions without losing source hashes or exact citations, and stale reports remain readable.
+- Real usage sessions can measure result quality, cancellations, errors, and adoption rate without presenting those metrics as an automatic quality guarantee.
 
-## 공개 배포 전 필수 작업
+## Required before public deployment
 
-- 로그인과 사용자별 세션, 프로젝트 역할 ACL, Reviewer 열람 범위와 모델 전송 정책을 구현한 뒤 인터넷에 공개합니다.
-- 비밀 저장·회전·감사 정책과 요청 rate limit을 마련합니다.
-- PostgreSQL 백업과 복원 절차를 자동화하고 별도 환경에서 복원 훈련을 통과합니다.
-- 여러 사용자·창·Worker의 동시 변경, lease, 멱등성, SSE 재접속과 제공자 장애를 부하 조건에서 검증합니다.
+- Implement sign-in, per-user sessions, project-role ACLs, Reviewer visibility boundaries, and model-transmission policies before internet exposure.
+- Establish secret storage, rotation, and audit policies, plus request rate limits.
+- Automate PostgreSQL backup and restore and pass a restoration exercise in a separate environment.
+- Under load, verify concurrent changes from multiple users, windows, and Workers; leases; idempotency; SSE reconnection; and provider failures.
 
-완료 기준은 권한 우회 없이 사용자·프로젝트 격리가 유지되고, 복원된 데이터의 snapshot·변경 세트·평가 hash 이력이 검증되며, 정의한 동시성 한도에서 중복 채택이나 조용한 결과 손실이 없는 것입니다.
+Completion requires user and project isolation without authorization bypass, verified snapshot/change-set/evaluation hash history after restore, and no duplicate adoption or silent result loss within defined concurrency limits.
 
-## 장기 범위
+## Long-term scope
 
-- 전문을 읽는 semantic Extractor/Evaluator와 의미 diff는 현재 구현이 아닙니다. 충분한 실제 사용 자료와 평가 기준을 확보한 뒤 별도 설계합니다.
-- 산문 시간 표현을 구조화된 제약으로 매핑하는 작업은 후속 범위입니다. 그 전까지 시간 기계 검사는 근거 없이 `pass`를 추정하지 않습니다.
-- semantic graph와 정규화된 Artifact/Revision/Graph 저장소는 JSONB 집계가 실제 규모, 질의 또는 동시성 요구를 충족하지 못할 때 도입합니다. 즉시 마이그레이션 목표로 두지 않습니다.
-- 전체 `/v1/projects/{project_id}` 리소스 API, 전역 P0–P6 자동화와 전체 원고 보완 검색은 실제 소비자와 운영 요구가 정해진 뒤 우선순위를 다시 평가합니다.
+- A full-manuscript semantic Extractor/Evaluator and semantic diff are not currently implemented. Design them separately after collecting sufficient real usage and evaluation criteria.
+- Mapping prose time expressions into structured constraints remains future work. Until then, temporal mechanical checks never infer `pass` without evidence.
+- Introduce a semantic graph and normalized Artifact/Revision/Graph store only when the JSONB aggregate fails real scale, query, or concurrency requirements. This is not an immediate migration target.
+- Reassess the complete `/v1/projects/{project_id}` resource API, global P0-P6 automation, and full-manuscript completion search after real consumers and operational requirements are known.
