@@ -12,12 +12,12 @@ async function parse(context, schema) {
   let body;
   try { body = await context.req.json(); }
   catch (error) {
-    if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', '유효한 JSON 본문이 필요합니다.', 400);
+    if (error instanceof SyntaxError) throw new DomainError('SCHEMA_INVALID', 'A valid JSON body is required.', 400);
     throw error;
   }
   const input = schema.parse(body);
   if (context.req.header(branchHeader) !== input.expectedBranchId) {
-    throw new DomainError('BRANCH_MISMATCH', '분기 헤더와 검토한 분기 식별자가 일치해야 합니다.', 409);
+    throw new DomainError('BRANCH_MISMATCH', 'The branch header must match the reviewed branch ID.', 409);
   }
   return input;
 }
