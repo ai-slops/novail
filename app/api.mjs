@@ -53,7 +53,7 @@ const parseBody = async (context, schema) => {
   try {
     body = await context.req.json();
   } catch {
-    throw new DomainError("SCHEMA_INVALID", "요청 본문은 유효한 JSON이어야 합니다.", 400);
+    throw new DomainError("SCHEMA_INVALID", "The request body must be valid JSON.", 400);
   }
   return schema.parse(body);
 };
@@ -70,7 +70,7 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
   app.onError((error, context) => {
     if (error instanceof DomainError) return context.json({ error: { code: error.code, message: error.message } }, error.status);
     if (error instanceof z.ZodError) return context.json({ error: { code: "SCHEMA_INVALID", message: z.prettifyError(error) } }, 400);
-    return context.json({ error: { code: "INTERNAL_ERROR", message: "요청을 처리하지 못했습니다." } }, 500);
+    return context.json({ error: { code: "INTERNAL_ERROR", message: "The request could not be processed." } }, 500);
   });
 
   app.use("/api/*", async (context, next) => {
@@ -81,7 +81,7 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
     try {
       originHost = origin ? new URL(origin).host : undefined;
     } catch {
-      throw new DomainError("SCHEMA_INVALID", "Origin 헤더가 유효하지 않습니다.", 400);
+      throw new DomainError("SCHEMA_INVALID", "The Origin header is invalid.", 400);
     }
     const configuredOrigin = process.env.APP_ORIGIN?.replace(/\/$/, "");
     const crossOrigin = Boolean(origin && originHost !== host && origin.replace(/\/$/, "") !== configuredOrigin)
@@ -89,7 +89,7 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
     if (!crossOrigin) return next();
     const token = process.env.APP_TOKEN;
     if (!token || context.req.header("Authorization") !== `Bearer ${token}`) {
-      return context.json({ error: { code: "UNAUTHORIZED", message: "교차 출처 변경에는 서버 토큰이 필요합니다." } }, 401);
+      return context.json({ error: { code: "UNAUTHORIZED", message: "Cross-origin changes require a server token." } }, 401);
     }
     return next();
   });
@@ -104,7 +104,7 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
     const project = state.project.id === context.req.param("id")
       ? state.project
       : state.workspaces.find((workspace) => workspace.project.id === context.req.param("id"))?.project;
-    if (!project) throw new DomainError("NOT_FOUND", "프로젝트를 찾을 수 없습니다.", 404);
+    if (!project) throw new DomainError("NOT_FOUND", "Project not found.", 404);
     return context.json(project);
   });
   app.post("/api/readiness", async (context) => context.json(checkReadiness(await parseBody(context, readinessSchema))));
@@ -134,7 +134,7 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
     const generationContext = buildGenerationContext(before, body);
     const maxOutputTokens = Number(process.env.OPENAI_MAX_OUTPUT_TOKENS ?? 4_096);
     if (!body.proposedText && process.env.OPENAI_API_KEY) {
-      throw new DomainError("USE_RUN_ENGINE", "실제 제공자 생성은 /api/runs 작업으로 요청하세요.", 409);
+      throw new DomainError("USE_RUN_ENGINE", "Request live provider generation through an /api/runs job.", 409);
     }
     const generated = await generateCandidate({
       scene: generationContext.scene,
@@ -191,7 +191,7 @@ export const createApp = ({ store, distRoot = "./dist", worker }) => {
   mountRepairRoutes(app, { store });
   mountMergeRoutes(app, { store, command });
 
-  app.all("/api/*", (context) => context.json({ error: { code: "NOT_FOUND", message: "API 경로를 찾을 수 없습니다." } }, 404));
+  app.all("/api/*", (context) => context.json({ error: { code: "NOT_FOUND", message: "API route not found." } }, 404));
 
   app.use("/*", serveStatic({ root: distRoot }));
   app.get("/*", serveStatic({ path: `${distRoot}/index.html` }));
