@@ -23,37 +23,37 @@ export function RunFailureDiagnostics({ run }: Props) {
       <span className="runtime-diagnostics-icon" aria-hidden="true"><AlertTriangle /></span>
       <div>
         <p className="overline">SAFE FAILURE DIAGNOSTICS</p>
-        <h4 id="runtime-diagnostics-title">실행 실패 진단</h4>
+        <h4 id="runtime-diagnostics-title">Run failure diagnostics</h4>
         <p><strong>{error.code}</strong>{error.message}</p>
       </div>
     </header>
     {diagnostics === undefined
-      ? <p className="runtime-diagnostics-legacy">이전 기록 상세 진단 없음</p>
+      ? <p className="runtime-diagnostics-legacy">No detailed diagnostics for this legacy record</p>
       : <>
         <dl>
-          <div><dt>실패 단계</dt><dd>{diagnosticStageLabel(diagnostics.stage)}<code>{diagnostics.stage}</code></dd></div>
-          <div><dt>HTTP 상태</dt><dd>{diagnostics.providerStatus ?? "기록 없음"}</dd></div>
-          <div><dt>제공자 코드</dt><dd><code>{diagnostics.providerCode ?? "기록 없음"}</code></dd></div>
-          <div><dt>요청 ID</dt><dd><code>{diagnostics.requestId ?? "기록 없음"}</code></dd></div>
-          <div><dt>재시도 가능</dt><dd>{diagnostics.retryable ? "가능" : "불가"}</dd></div>
-          <div><dt>원인 분류</dt><dd><code>{diagnostics.reasonCode}</code></dd></div>
-          <div><dt>실행 ID</dt><dd><code>{run.id}</code></dd></div>
-          <div><dt>선택 모델</dt><dd><code>{run.selectedModel ?? "기록 없음"}</code></dd></div>
-          <div><dt>런타임 출처</dt><dd>{run.runtime ? `${run.runtime.name} ${run.runtime.version} · ${run.runtime.mode}` : "기록 없음"}</dd></div>
+          <div><dt>Failure stage</dt><dd>{diagnosticStageLabel(diagnostics.stage)}<code>{diagnostics.stage}</code></dd></div>
+          <div><dt>HTTP status</dt><dd>{diagnostics.providerStatus ?? "Not recorded"}</dd></div>
+          <div><dt>Provider code</dt><dd><code>{diagnostics.providerCode ?? "Not recorded"}</code></dd></div>
+          <div><dt>Request ID</dt><dd><code>{diagnostics.requestId ?? "Not recorded"}</code></dd></div>
+          <div><dt>Retryable</dt><dd>{diagnostics.retryable ? "Yes" : "No"}</dd></div>
+          <div><dt>Reason code</dt><dd><code>{diagnostics.reasonCode}</code></dd></div>
+          <div><dt>Run ID</dt><dd><code>{run.id}</code></dd></div>
+          <div><dt>Selected model</dt><dd><code>{run.selectedModel ?? "Not recorded"}</code></dd></div>
+          <div><dt>Runtime provenance</dt><dd>{run.runtime ? `${run.runtime.name} ${run.runtime.version} · ${run.runtime.mode}` : "Not recorded"}</dd></div>
         </dl>
         <p className="runtime-retry-guidance">{retryGuidance(diagnostics.retryable)}</p>
       </>}
     <details>
-      <summary>복사될 안전한 로그 미리보기</summary>
+      <summary>Preview safe log to be copied</summary>
       <pre>{JSON.stringify(safeLog, null, 2)}</pre>
     </details>
     <footer>
-      <p>입력 원문, API 키, 요청 헤더, 원시 제공자 응답은 포함하지 않습니다.</p>
+      <p>Excludes source input, API keys, request headers, and raw provider responses.</p>
       <button className="button quiet" type="button" onClick={() => void copy()}>
         {copyStatus === "copied" ? <Check /> : <ClipboardCopy />}
-        {copyStatus === "copied" ? "복사됨" : "진단 로그 복사"}
+        {copyStatus === "copied" ? "Copied" : "Copy diagnostic log"}
       </button>
     </footer>
-    <p className="sr-only" aria-live="polite">{copyStatus === "copied" ? "안전한 진단 로그를 복사했습니다." : copyStatus === "failed" ? "진단 로그를 복사하지 못했습니다." : ""}</p>
+    <p className="sr-only" aria-live="polite">{copyStatus === "copied" ? "Safe diagnostic log copied." : copyStatus === "failed" ? "Could not copy the diagnostic log." : ""}</p>
   </section>
 }

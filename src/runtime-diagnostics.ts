@@ -3,13 +3,13 @@ import type { SafeRunSummary } from "../packages/execution/contracts.ts"
 type FailureDiagnostics = NonNullable<NonNullable<SafeRunSummary["error"]>["diagnostics"]>
 
 const stageLabels = {
-  provider_transport: "제공자 연결 실패",
-  provider_http: "제공자 요청 거절",
-  provider_response: "제공자 응답 오류",
-  output_json: "결과 JSON 해석 실패",
-  output_shape: "결과 형식 불일치",
-  output_scope: "허용 범위 불일치",
-  output_truncated: "결과 출력 잘림",
+  provider_transport: "Provider connection failed",
+  provider_http: "Provider request rejected",
+  provider_response: "Provider response error",
+  output_json: "Result JSON parsing failed",
+  output_shape: "Result shape mismatch",
+  output_scope: "Allowed scope mismatch",
+  output_truncated: "Result output truncated",
 } as const satisfies Readonly<Record<FailureDiagnostics["stage"], string>>
 
 export function diagnosticStageLabel(stage: FailureDiagnostics["stage"]): string {
@@ -18,8 +18,8 @@ export function diagnosticStageLabel(stage: FailureDiagnostics["stage"]): string
 
 export function retryGuidance(retryable: boolean): string {
   return retryable
-    ? "일시적인 문제일 수 있습니다. 잠시 뒤 같은 실행을 다시 시도할 수 있습니다."
-    : "같은 설정으로 다시 실행해도 해결되지 않습니다. 모델과 API 프로토콜 설정을 확인하세요."
+    ? "This may be temporary. You can retry the same run shortly."
+    : "Retrying with the same settings will not resolve this. Check the model and API protocol configuration."
 }
 
 export function buildSafeDiagnosticLog(run: SafeRunSummary) {
