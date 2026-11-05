@@ -1,0 +1,18 @@
+schemaVersion: 1
+repositories:
+  main:
+    ref: main
+    defaultBranch: main
+    protect:
+      - main
+      - development
+    branches:
+      main:
+        review: true
+      development:
+        review: false
+    upstream:
+      url: https://github.com/ai-slops/novail.git
+      branch: main
+    publish:
+      main: main
